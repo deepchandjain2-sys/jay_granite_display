@@ -34,26 +34,23 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.role = ""
 
-# --- Load Designs from Local CSV File (Zero Error) ---
+# --- Google Sheet Live Integration ---
 def load_designs_from_sheet():
-    if os.path.exists("tiles.csv"):
-        try:
-            df = pd.read_csv("tiles.csv")
-            column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
-            designs = df[column_name].dropna().astype(str).tolist()
-            if designs:
-                return designs
-        except:
-            pass
+    try:
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
+        df = pd.read_csv(sheet_url)
+        column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
+        designs = df[column_name].dropna().astype(str).tolist()
+        if designs:
+            return designs
+    except Exception as e:
+        pass
     
-    # Fallback list agar tiles.csv upload na ho
     return [
         "1000 L 12X18 KK",
         "0015 16X16 CIBELA",
         "1002 EI 2x1 Torino",
-        "1005 CIGAR GLOSSY 1X1 ICON",
-        "Mega HI 2x1 Varmora",
-        "DOVER NERO 2X2 ITALICA"
+        "1005 CIGAR GLOSSY 1X1 ICON"
     ]
 
 design_list = load_designs_from_sheet()
