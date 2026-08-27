@@ -1,9 +1,7 @@
 import streamlit as st
 import pandas as pd
-import requests
-import io
-import json
 import os
+import json
 import re
 
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
@@ -25,7 +23,6 @@ def save_json_file(filename, data):
     with open(filename, "w") as f:
         json.dump(data, f, indent=4)
 
-# Load users and displays from permanent files
 if "users" not in st.session_state:
     st.session_state.users = load_json_file(USERS_FILE, {"admin": {"password": "123", "mobile": "9999999999", "role": "admin"}})
 
@@ -37,23 +34,19 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.role = ""
 
-# --- Google Sheet Live Integration ---
-# --- Google Sheet Live Integration ---
+# --- Load Designs from Local CSV File (Zero Error) ---
 def load_designs_from_sheet():
-    try:
-        # Apni Google Sheet ka Publish to Web wala CSV link yahan daalein
-        sheet_url = "https://docs.google.com/spreadsheets/d/1qhBmCLkdAKQMXrbyKSRfCEHybfdxfv2XIABLxO6pA/pub?output=csv"
-        response = requests.get(sheet_url, timeout=5)
-        if response.status_code == 200:
-            df = pd.read_csv(io.StringIO(response.text))
+    if os.path.exists("tiles.csv"):
+        try:
+            df = pd.read_csv("tiles.csv")
             column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
             designs = df[column_name].dropna().astype(str).tolist()
             if designs:
                 return designs
-    except Exception as e:
-        pass
+        except:
+            pass
     
-    # Agar sheet load na ho toh yeh items dikhenge taaki aapka kaam na ruke
+    # Fallback list agar tiles.csv upload na ho
     return [
         "1000 L 12X18 KK",
         "0015 16X16 CIBELA",
@@ -62,6 +55,9 @@ def load_designs_from_sheet():
         "Mega HI 2x1 Varmora",
         "DOVER NERO 2X2 ITALICA"
     ]
+
+design_list = load_designs_from_sheet()
+
 # --- AUTHENTICATION SECTION ---
 if not st.session_state.logged_in:
     st.title("🪟 Jay Granite Tiles - Portal")
@@ -145,8 +141,7 @@ else:
     with tab1:
         st.header(f"Assign Multiple Tiles on Same Board - {location}")
         
-        # Search Bar for Tile Selection
-        item_search = st.text_input("🔎 Search Tile Design from Google Sheet List").strip().lower()
+        item_search = st.text_input("🔎 Search Tile Design").strip().lower()
         filtered_designs = design_list
         if item_search:
             filtered_designs = [d for d in design_list if item_search in d.lower()]
