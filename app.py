@@ -40,8 +40,11 @@ if "logged_in" not in st.session_state:
 # --- Google Sheet Live Integration ---
 def load_designs_from_sheet():
     try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=0&single=true&output=csv"
-    "    response = requests.get(sheet_url, timeout=5)
+        part1 = "https://docs.google.com/spreadsheets/d/e/"
+        part2 = "2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
+        sheet_url = part1 + part2
+        
+        response = requests.get(sheet_url, timeout=5)
         if response.status_code == 200:
             df = pd.read_csv(io.StringIO(response.text))
             column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
@@ -51,14 +54,12 @@ def load_designs_from_sheet():
     except Exception as e:
         pass
     
-    # Fallback list agar network ya sheet link mein koi issue ho
     return [
         "1000 L 12X18 KK",
         "0015 16X16 CIBELA",
         "1002 EI 2x1 Torino",
         "1005 CIGAR GLOSSY 1X1 ICON"
     ]
-
 design_list = load_designs_from_sheet()
 
 # --- AUTHENTICATION SECTION ---
