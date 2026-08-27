@@ -40,10 +40,7 @@ if "logged_in" not in st.session_state:
 # --- Google Sheet Live Integration ---
 def load_designs_from_sheet():
     try:
-        part1 = "https://docs.google.com/spreadsheets/d/e/"
-        part2 = "2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
-        sheet_url = part1 + part2
-        
+        sheet_url = "https://docs.google.com/spreadsheets/d/1qhBmCLkdAKQMXrbyKSRfCEHybfdxfv2XIABLxO6pA/export?format=csv&gid=0"
         response = requests.get(sheet_url, timeout=5)
         if response.status_code == 200:
             df = pd.read_csv(io.StringIO(response.text))
@@ -59,8 +56,7 @@ def load_designs_from_sheet():
         "0015 16X16 CIBELA",
         "1002 EI 2x1 Torino",
         "1005 CIGAR GLOSSY 1X1 ICON"
-    ]
-design_list = load_designs_from_sheet()
+    ]design_list = load_designs_from_sheet()
 
 # --- AUTHENTICATION SECTION ---
 if not st.session_state.logged_in:
