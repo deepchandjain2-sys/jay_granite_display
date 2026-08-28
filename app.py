@@ -26,7 +26,6 @@ def save_json_file(filename, data):
 if "users" not in st.session_state:
     st.session_state.users = load_json_file(USERS_FILE, {"admin": {"password": "123", "mobile": "9999999999", "role": "admin"}})
 
-# Always load fresh displays data from file to ensure sync across devices
 st.session_state.displays = load_json_file(DISPLAYS_FILE, [])
 
 if "logged_in" not in st.session_state:
@@ -37,7 +36,7 @@ if "logged_in" not in st.session_state:
 # --- Google Sheet Live Integration ---
 def load_designs_from_sheet():
     try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=0&single=true&output=csv"
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
         designs = df[column_name].dropna().astype(str).tolist()
@@ -126,6 +125,18 @@ if not st.session_state.logged_in:
 
 else:
     st.sidebar.title(f"👤 {st.session_state.username} ({st.session_state.role.capitalize()})")
+    
+    # --- DOWNLOAD BACKUP BUTTON IN SIDEBAR ---
+    current_data_for_backup = load_json_file(DISPLAYS_FILE, [])
+    json_string = json.dumps(current_data_for_backup, indent=4)
+    st.sidebar.download_button(
+        label="📥 Download Display Backup",
+        data=json_string,
+        file_name="displays_backup.json",
+        mime="application/json",
+        help="Click to download all saved board entries as a backup file."
+    )
+    
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
@@ -154,7 +165,6 @@ else:
                 if not selected_designs:
                     st.warning("Please select at least one tile design.")
                 else:
-                    # Reload latest data before appending to avoid overwriting entries made from other devices
                     current_displays = load_json_file(DISPLAYS_FILE, [])
                     added_count = 0
                     for design in selected_designs:
@@ -180,9 +190,7 @@ else:
     with tab2:
         st.header(f"Active Displays - {location}")
         
-        # Always fetch latest data for display tabs
         current_displays = load_json_file(DISPLAYS_FILE, [])
-        
         search_query = st.text_input("🔍 Search (e.g. S1, B1, S1B1 or Design Name)").strip().lower()
         
         loc_displays = [d for d in current_displays if d['location'] == location and d['status'] == 'Available']
