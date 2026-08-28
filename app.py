@@ -37,7 +37,7 @@ if "logged_in" not in st.session_state:
 # --- Google Sheet Live Integration ---
 def load_designs_from_sheet():
     try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=0&single=true&output=csv"
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
         designs = df[column_name].dropna().astype(str).tolist()
@@ -127,22 +127,23 @@ if not st.session_state.logged_in:
 else:
     st.sidebar.title(f"👤 {st.session_state.username} ({st.session_state.role.capitalize()})")
     
-    # --- DOWNLOAD EXCEL BACKUP BUTTON IN SIDEBAR ---
-    current_data_for_backup = load_json_file(DISPLAYS_FILE, [])
-    if current_data_for_backup:
-        df_backup = pd.DataFrame(current_data_for_backup)
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df_backup.to_excel(writer, index=False, sheet_name='Displays')
-        excel_data = output.getvalue()
-        
-        st.sidebar.download_button(
-            label="📥 Download Excel Backup",
-            data=excel_data,
-            file_name="displays_backup.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            help="Click to download all saved board entries as an Excel spreadsheet."
-        )
+    # --- DOWNLOAD EXCEL BACKUP ONLY FOR ADMIN ---
+    if st.session_state.role == "admin":
+        current_data_for_backup = load_json_file(DISPLAYS_FILE, [])
+        if current_data_for_backup:
+            df_backup = pd.DataFrame(current_data_for_backup)
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df_backup.to_excel(writer, index=False, sheet_name='Displays')
+            excel_data = output.getvalue()
+            
+            st.sidebar.download_button(
+                label="📥 Download Excel Backup",
+                data=excel_data,
+                file_name="displays_backup.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                help="Click to download all saved board entries as an Excel spreadsheet."
+            )
     
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
@@ -256,6 +257,20 @@ else:
         if not unavail_displays:
             st.info("No unavailable items.")
         else:
+            # --- PRINT / SHARE BUTTON FOR UNAVAILABLE ITEMS ---
+            text_data = f"--- UNAVAILABLE TILES LIST ({location}) ---\n\n"
+            for item in unavail_displays:
+                text_data += f"Stand: {item['stand']} | Board: {item['board']} | Design: {item['design']}\n"
+            
+            st.download_button(
+                label="📥 Download / Print Unavailable List",
+                data=text_data,
+                file_name=f"unavailable_tiles_{location.lower()}.txt",
+                mime="text/plain",
+                help="Download unavailable items list to print or share."
+            )
+            st.markdown("---")
+            
             for i, item in enumerate(unavail_displays):
                 col1, col2, col3, col4 = st.columns([2, 2, 3, 2])
                 col1.write(f"**Stand No:** {item['stand']}")
