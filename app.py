@@ -37,7 +37,7 @@ if "logged_in" not in st.session_state:
 # --- Google Sheet Live Integration ---
 def load_designs_from_sheet():
     try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=0&single=true&output=csv"
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
         designs = df[column_name].dropna().astype(str).tolist()
@@ -152,7 +152,11 @@ else:
     st.title("🏢 Showroom Display Management")
     location = st.selectbox("Select Showroom Location", ["Hiriyur", "Davangere"])
     
-    tab1, tab2, tab3 = st.tabs(["📌 Assign Multiple Tiles (Same Board)", "📋 Selected Displays", "⚠️ Unavailable & Clear"])
+    # Tabs list (Agar admin hai toh Manage Users ka tab bhi dikhega)
+    if st.session_state.role == "admin":
+        tab1, tab2, tab3, tab4 = st.tabs(["📌 Assign Multiple Tiles", "📋 Selected Displays", "⚠️ Unavailable & Clear", "⚙️ Manage Users (Admin)"])
+    else:
+        tab1, tab2, tab3 = st.tabs(["📌 Assign Multiple Tiles", "📋 Selected Displays", "⚠️ Unavailable & Clear"])
     
     with tab1:
         st.header(f"Assign Multiple Tiles on Same Board - {location}")
@@ -257,7 +261,6 @@ else:
         if not unavail_displays:
             st.info("No unavailable items.")
         else:
-            # --- PRINT / SHARE BUTTON FOR UNAVAILABLE ITEMS ---
             text_data = f"--- UNAVAILABLE TILES LIST ({location}) ---\n\n"
             for item in unavail_displays:
                 text_data += f"Stand: {item['stand']} | Board: {item['board']} | Design: {item['design']}\n"
@@ -285,3 +288,26 @@ else:
                     save_json_file(DISPLAYS_FILE, latest_data)
                     st.success("Item cleared successfully!")
                     st.rerun()
+
+    # --- ADMIN TAB TO DELETE USERS ---
+    if st.session_state.role == "admin":
+        with tab4:
+            st.header("⚙️ Manage Registered Users / Salesmen")
+            st.write("Yahan se aap kisi bhi salesman ya user ka account delete kar sakte hain taaki woh dobara login na kar sakein.")
+            
+            users_data = load_json_file(USERS_FILE, {})
+            for uname, udata in list(users_data.items()):
+                col1, col2, col3 = st.columns([3, 3, 2])
+                col1.write(f"**User ID:** {uname}")
+                col2.write(f"**Role:** {udata.get('role', 'salesman').capitalize()} (Mobile: {udata.get('mobile', '')})")
+                
+                if uname != "admin": # Admin khud ko delete nahi kar sakta
+                    if col3.button("🗑️ Delete User", key=f"del_user_{uname}"):
+                        if uname in users_data:
+                            del users_data[uname]
+                            save_json_file(USERS_FILE, users_data)
+                            st.session_state.users = users_data
+                            st.success(f"User '{uname}' successfully deleted!")
+                            st.rerun()
+                else:
+                    col3.write("🔒 Protected")
