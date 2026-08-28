@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import json
 import re
+import io
 
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
 
@@ -126,16 +127,22 @@ if not st.session_state.logged_in:
 else:
     st.sidebar.title(f"👤 {st.session_state.username} ({st.session_state.role.capitalize()})")
     
-    # --- DOWNLOAD BACKUP BUTTON IN SIDEBAR ---
+    # --- DOWNLOAD EXCEL BACKUP BUTTON IN SIDEBAR ---
     current_data_for_backup = load_json_file(DISPLAYS_FILE, [])
-    json_string = json.dumps(current_data_for_backup, indent=4)
-    st.sidebar.download_button(
-        label="📥 Download Display Backup",
-        data=json_string,
-        file_name="displays_backup.json",
-        mime="application/json",
-        help="Click to download all saved board entries as a backup file."
-    )
+    if current_data_for_backup:
+        df_backup = pd.DataFrame(current_data_for_backup)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df_backup.to_excel(writer, index=False, sheet_name='Displays')
+        excel_data = output.getvalue()
+        
+        st.sidebar.download_button(
+            label="📥 Download Excel Backup",
+            data=excel_data,
+            file_name="displays_backup.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help="Click to download all saved board entries as an Excel spreadsheet."
+        )
     
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
