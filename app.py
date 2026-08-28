@@ -26,8 +26,8 @@ def save_json_file(filename, data):
 if "users" not in st.session_state:
     st.session_state.users = load_json_file(USERS_FILE, {"admin": {"password": "123", "mobile": "9999999999", "role": "admin"}})
 
-if "displays" not in st.session_state:
-    st.session_state.displays = load_json_file(DISPLAYS_FILE, [])
+# Always load fresh displays data from file to ensure sync across devices
+st.session_state.displays = load_json_file(DISPLAYS_FILE, [])
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -37,7 +37,7 @@ if "logged_in" not in st.session_state:
 # --- Google Sheet Live Integration ---
 def load_designs_from_sheet():
     try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=0&single=true&output=csv"
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
         designs = df[column_name].dropna().astype(str).tolist()
@@ -154,6 +154,8 @@ else:
                 if not selected_designs:
                     st.warning("Please select at least one tile design.")
                 else:
+                    # Reload latest data before appending to avoid overwriting entries made from other devices
+                    current_displays = load_json_file(DISPLAYS_FILE, [])
                     added_count = 0
                     for design in selected_designs:
                         exists = any(
@@ -161,10 +163,10 @@ else:
                             d['stand'] == stand_no and 
                             d['board'] == board_no and 
                             d['design'] == design 
-                            for d in st.session_state.displays
+                            for d in current_displays
                         )
                         if not exists:
-                            st.session_state.displays.append({
+                            current_displays.append({
                                 'location': location,
                                 'stand': stand_no,
                                 'board': board_no,
@@ -172,15 +174,18 @@ else:
                                 'status': 'Available'
                             })
                             added_count += 1
-                    save_json_file(DISPLAYS_FILE, st.session_state.displays)
+                    save_json_file(DISPLAYS_FILE, current_displays)
                     st.success(f"{added_count} tile(s) successfully added to Stand {stand_no}, Board {board_no} at {location}!")
 
     with tab2:
         st.header(f"Active Displays - {location}")
         
+        # Always fetch latest data for display tabs
+        current_displays = load_json_file(DISPLAYS_FILE, [])
+        
         search_query = st.text_input("🔍 Search (e.g. S1, B1, S1B1 or Design Name)").strip().lower()
         
-        loc_displays = [d for d in st.session_state.displays if d['location'] == location and d['status'] == 'Available']
+        loc_displays = [d for d in current_displays if d['location'] == location and d['status'] == 'Available']
         
         if search_query:
             has_s = 's' in search_query
@@ -221,15 +226,17 @@ else:
                 col2.write(f"**Board No:** {item['board']}")
                 col3.write(f"**Design:** {item['design']}")
                 if col4.button("Mark Unavailable", key=f"unavail_{location}_{item['stand']}_{item['board']}_{i}"):
-                    for d in st.session_state.displays:
+                    fresh_data = load_json_file(DISPLAYS_FILE, [])
+                    for d in fresh_data:
                         if d['location'] == location and d['stand'] == item['stand'] and d['board'] == item['board'] and d['design'] == item['design']:
                             d['status'] = 'Unavailable'
-                    save_json_file(DISPLAYS_FILE, st.session_state.displays)
+                    save_json_file(DISPLAYS_FILE, fresh_data)
                     st.rerun()
 
     with tab3:
         st.header(f"Unavailable Section & Clear Boards - {location}")
-        unavail_displays = [d for d in st.session_state.displays if d['location'] == location and d['status'] == 'Unavailable']
+        fresh_data = load_json_file(DISPLAYS_FILE, [])
+        unavail_displays = [d for d in fresh_data if d['location'] == location and d['status'] == 'Unavailable']
         
         if not unavail_displays:
             st.info("No unavailable items.")
@@ -240,10 +247,11 @@ else:
                 col2.write(f"**Board No:** {item['board']}")
                 col3.write(f"**Design:** {item['design']}")
                 if col4.button("Remove / Clear Tile", key=f"clear_{location}_{item['stand']}_{item['board']}_{i}"):
-                    st.session_state.displays = [
-                        d for d in st.session_state.displays 
+                    latest_data = load_json_file(DISPLAYS_FILE, [])
+                    latest_data = [
+                        d for d in latest_data 
                         if not (d['location'] == location and d['stand'] == item['stand'] and d['board'] == item['board'] and d['design'] == item['design'])
                     ]
-                    save_json_file(DISPLAYS_FILE, st.session_state.displays)
+                    save_json_file(DISPLAYS_FILE, latest_data)
                     st.success("Item cleared successfully!")
                     st.rerun()
