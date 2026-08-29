@@ -9,7 +9,6 @@ st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
 USERS_FILE = "users_data.json"
 DISPLAYS_FILE = "displays_data.json"
 
-# Local JSON storage handlers for ultra-fast performance
 def load_local_data(filename):
     if os.path.exists(filename):
         try:
@@ -41,8 +40,8 @@ if "logged_in" not in st.session_state:
     st.session_state.role = ""
 
 def load_designs_from_sheet():
+    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
     try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
         designs = df[column_name].dropna().astype(str).tolist()
