@@ -3,70 +3,26 @@ import pandas as pd
 import os
 import json
 import re
-import base64
-import requests
 
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
-
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-REPO_NAME = st.secrets.get("REPO_NAME", "deepchandjain2-sys/jay_granite_display")
 
 USERS_FILE = "users_data.json"
 DISPLAYS_FILE = "displays_data.json"
 
-def fetch_from_github(filename):
-    if not GITHUB_TOKEN:
-        if os.path.exists(filename):
-            try:
-                with open(filename, "r") as f:
-                    return json.load(f)
-            except:
-                return None
-        return None
-    
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            content_encoded = response.json().get("content", "")
-            decoded_bytes = base64.b64decode(content_encoded)
-            return json.loads(decoded_bytes.decode('utf-8'))
-    except:
-        pass
-    return None
+# Local JSON storage handlers for ultra-fast performance
+def load_local_data(filename):
+    if os.path.exists(filename):
+        try:
+            with open(filename, "r") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
 
-def save_to_github(filename, data):
-    with open(filename, "w") as f:
-        json.dump(data, f, indent=4)
-        
-    if not GITHUB_TOKEN:
-        return
-        
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-    
-    sha = None
+def save_local_data(filename, data):
     try:
-        res = requests.get(url, headers=headers)
-        if res.status_code == 200:
-            sha = res.json().get("sha")
-    except:
-        pass
-        
-    json_str = json.dumps(data, indent=4)
-    encoded_content = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
-    
-    payload = {
-        "message": f"Auto-update {filename} from Streamlit App",
-        "content": encoded_content,
-        "branch": "main"
-    }
-    if sha:
-        payload["sha"] = sha
-        
-    try:
-        requests.put(url, headers=headers, json=payload)
+        with open(filename, "w") as f:
+            json.dump(data, f, indent=4)
     except:
         pass
 
@@ -77,11 +33,7 @@ if "users" not in st.session_state:
     }
 
 if "displays" not in st.session_state:
-    cloud_displays = fetch_from_github(DISPLAYS_FILE)
-    if cloud_displays is not None and isinstance(cloud_displays, list):
-        st.session_state.displays = cloud_displays
-    else:
-        st.session_state.displays = []
+    st.session_state.displays = load_local_data(DISPLAYS_FILE)
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -90,7 +42,7 @@ if "logged_in" not in st.session_state:
 
 def load_designs_from_sheet():
     try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=0&single=true&output=csv"
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
         designs = df[column_name].dropna().astype(str).tolist()
@@ -186,8 +138,8 @@ else:
                 raw_data = json.load(uploaded_json_backup)
                 if isinstance(raw_data, list):
                     st.session_state.displays = raw_data
-                    save_to_github(DISPLAYS_FILE, raw_data)
-                    st.sidebar.success("Displays restored & synced to cloud successfully!")
+                    save_local_data(DISPLAYS_FILE, raw_data)
+                    st.sidebar.success("Displays restored successfully!")
                     st.rerun()
                 else:
                     st.sidebar.error("Invalid format.")
@@ -225,11 +177,9 @@ else:
                 if not selected_designs:
                     st.warning("Please select at least one tile design.")
                 else:
-                    current_displays = fetch_from_github(DISPLAYS_FILE)
-                    if current_displays is None:
-                        current_displays = st.session_state.displays
-                    if current_displays is None:
-                        current_displays = []
+                    current_displays = load_local_data(DISPLAYS_FILE)
+                    if not current_displays:
+                        current_displays = st.session_state.displays or []
                         
                     added_count = 0
                     for design in selected_designs:
@@ -237,7 +187,7 @@ else:
                             str(d.get('location', '')).strip().lower() == location.strip().lower() and 
                             int(d.get('stand', 0)) == stand_no and 
                             int(d.get('board', 0)) == board_no and 
-                            d.get('design') == design 
+                            str(d.get('design', '')).strip() == str(design).strip()
                             for d in current_displays
                         )
                         if not exists:
@@ -251,16 +201,16 @@ else:
                             added_count += 1
                     
                     st.session_state.displays = current_displays
-                    save_to_github(DISPLAYS_FILE, current_displays)
-                    st.success(f"{added_count} tile(s) successfully added to Stand {stand_no}, Board {board_no} at {location}!")
+                    save_local_data(DISPLAYS_FILE, current_displays)
+                    st.success(f"{added_count} tile(s) successfully added!")
                     st.rerun()
 
     with tab2:
         st.header(f"Active Displays - {location}")
         
-        current_displays = fetch_from_github(DISPLAYS_FILE)
-        if current_displays is None:
-            current_displays = st.session_state.displays
+        current_displays = load_local_data(DISPLAYS_FILE)
+        if not current_displays:
+            current_displays = st.session_state.displays or []
             
         search_query = st.text_input("🔍 Search (e.g. S1, B1, S1B1 or Design Name)").strip().lower()
         
@@ -310,18 +260,22 @@ else:
                 col1.write(f"**Stand No:** {item.get('stand')}")
                 col2.write(f"**Board No:** {item.get('board')}")
                 col3.write(f"**Design:** {item.get('design')}")
-                if col4.button("Mark Unavailable", key=f"unavail_{location}_{item.get('stand')}_{item.get('board')}_{i}"):
-                    fresh_data = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
+                if col4.button("Mark Unavailable", key=f"unavail_{location}_{item.get('stand')}_{item.get('board')}_{i}_{item.get('design')}"):
+                    fresh_data = load_local_data(DISPLAYS_FILE) or st.session_state.displays or []
                     for d in fresh_data:
-                        if str(d.get('location', '')).strip().lower() == location.strip().lower() and int(d.get('stand', 0)) == int(item.get('stand', 0)) and int(d.get('board', 0)) == int(item.get('board', 0)) and d.get('design') == item.get('design'):
+                        if (str(d.get('location', '')).strip().lower() == location.strip().lower() and 
+                            int(d.get('stand', 0)) == int(item.get('stand', 0)) and 
+                            int(d.get('board', 0)) == int(item.get('board', 0)) and 
+                            str(d.get('design', '')).strip() == str(item.get('design', '')).strip()):
                             d['status'] = 'Unavailable'
                     st.session_state.displays = fresh_data
-                    save_to_github(DISPLAYS_FILE, fresh_data)
+                    save_local_data(DISPLAYS_FILE, fresh_data)
+                    st.success("Marked as Unavailable!")
                     st.rerun()
 
     with tab3:
         st.header(f"Unavailable Section & Clear Boards - {location}")
-        fresh_data = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
+        fresh_data = load_local_data(DISPLAYS_FILE) or st.session_state.displays or []
         unavail_displays = []
         if fresh_data and isinstance(fresh_data, list):
             unavail_displays = [d for d in fresh_data if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', '')).strip().capitalize() == 'Unavailable']
@@ -346,14 +300,17 @@ else:
                 col1.write(f"**Stand No:** {item.get('stand')}")
                 col2.write(f"**Board No:** {item.get('board')}")
                 col3.write(f"**Design:** {item.get('design')}")
-                if col4.button("Remove / Clear Tile", key=f"clear_{location}_{item.get('stand')}_{item.get('board')}_{i}"):
-                    latest_data = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
+                if col4.button("Remove / Clear Tile", key=f"clear_{location}_{item.get('stand')}_{item.get('board')}_{i}_{item.get('design')}"):
+                    latest_data = load_local_data(DISPLAYS_FILE) or st.session_state.displays or []
                     latest_data = [
                         d for d in latest_data 
-                        if not (str(d.get('location', '')).strip().lower() == location.strip().lower() and int(d.get('stand', 0)) == int(item.get('stand', 0)) and int(d.get('board', 0)) == int(item.get('board', 0)) and d.get('design') == item.get('design'))
+                        if not (str(d.get('location', '')).strip().lower() == location.strip().lower() and 
+                                int(d.get('stand', 0)) == int(item.get('stand', 0)) and 
+                                int(d.get('board', 0)) == int(item.get('board', 0)) and 
+                                str(d.get('design', '')).strip() == str(item.get('design', '')).strip())
                     ]
                     st.session_state.displays = latest_data
-                    save_to_github(DISPLAYS_FILE, latest_data)
+                    save_local_data(DISPLAYS_FILE, latest_data)
                     st.success("Item cleared successfully!")
                     st.rerun()
 
