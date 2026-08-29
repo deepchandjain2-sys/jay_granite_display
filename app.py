@@ -3,20 +3,85 @@ import pandas as pd
 import os
 import json
 import re
+import base64
+import requests
 
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
+
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
+REPO_NAME = st.secrets.get("REPO_NAME", "deepchandjain2-sys/jay_granite_display")
 
 USERS_FILE = "users_data.json"
 DISPLAYS_FILE = "displays_data.json"
 
-# Permanent Local Fallback / Session Cache initialization
+def fetch_from_github(filename):
+    if not GITHUB_TOKEN:
+        if os.path.exists(filename):
+            try:
+                with open(filename, "r") as f:
+                    return json.load(f)
+            except:
+                return None
+        return None
+    
+    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            content_encoded = response.json().get("content", "")
+            decoded_bytes = base64.b64decode(content_encoded)
+            return json.loads(decoded_bytes.decode('utf-8'))
+    except:
+        pass
+    return None
+
+def save_to_github(filename, data):
+    with open(filename, "w") as f:
+        json.dump(data, f, indent=4)
+        
+    if not GITHUB_TOKEN:
+        return
+        
+    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
+    
+    sha = None
+    try:
+        res = requests.get(url, headers=headers)
+        if res.status_code == 200:
+            sha = res.json().get("sha")
+    except:
+        pass
+        
+    json_str = json.dumps(data, indent=4)
+    encoded_content = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
+    
+    payload = {
+        "message": f"Auto-update {filename} from Streamlit App",
+        "content": encoded_content,
+        "branch": "main"
+    }
+    if sha:
+        payload["sha"] = sha
+        
+    try:
+        requests.put(url, headers=headers, json=payload)
+    except:
+        pass
+
 if "users" not in st.session_state:
     st.session_state.users = {
         "admin": {"password": "123", "mobile": "9999999999", "role": "admin"},
         "DEEPCHAND JAIN": {"password": "deep1965", "mobile": "9888888888", "role": "admin"}
     }
+
 if "displays" not in st.session_state:
-    st.session_state.displays = []
+    cloud_displays = fetch_from_github(DISPLAYS_FILE)
+    if cloud_displays is not None and isinstance(cloud_displays, list):
+        st.session_state.displays = cloud_displays
+    else:
+        st.session_state.displays = []
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -112,30 +177,6 @@ if not st.session_state.logged_in:
 else:
     st.sidebar.title(f"👤 {st.session_state.username} ({st.session_state.role.capitalize()})")
     
-    if st.session_state.role == "admin":
-        if st.session_state.displays:
-            json_backup_str = json.dumps(st.session_state.displays, indent=4)
-            st.sidebar.download_button(
-                label="📥 Download JSON Backup",
-                data=json_backup_str,
-                file_name="displays_backup.json",
-                mime="application/json"
-            )
-            
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("🔄 Restore Displays Data")
-        uploaded_json_backup = st.sidebar.file_uploader("Upload Displays JSON (.json)", type=["json"])
-        if uploaded_json_backup is not None:
-            try:
-                raw_data = json.load(uploaded_json_backup)
-                if isinstance(raw_data, list):
-                    st.session_state.displays = raw_data
-                    st.sidebar.success("Displays restored successfully! Please check Selected Displays tab.")
-                else:
-                    st.sidebar.error("Invalid format.")
-            except Exception as e:
-                st.sidebar.error("Error reading JSON file.")
-    
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
@@ -167,6 +208,7 @@ else:
                 if not selected_designs:
                     st.warning("Please select at least one tile design.")
                 else:
+                    current_displays = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
                     added_count = 0
                     for design in selected_designs:
                         exists = any(
@@ -174,10 +216,10 @@ else:
                             int(d.get('stand', 0)) == stand_no and 
                             int(d.get('board', 0)) == board_no and 
                             d.get('design') == design 
-                            for d in st.session_state.displays
+                            for d in current_displays
                         )
                         if not exists:
-                            st.session_state.displays.append({
+                            current_displays.append({
                                 'location': location,
                                 'stand': stand_no,
                                 'board': board_no,
@@ -185,14 +227,17 @@ else:
                                 'status': 'Available'
                             })
                             added_count += 1
+                    st.session_state.displays = current_displays
+                    save_to_github(DISPLAYS_FILE, current_displays)
                     st.success(f"{added_count} tile(s) successfully added to Stand {stand_no}, Board {board_no} at {location}!")
 
     with tab2:
         st.header(f"Active Displays - {location}")
         
+        current_displays = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
         search_query = st.text_input("🔍 Search (e.g. S1, B1, S1B1 or Design Name)").strip().lower()
         
-        loc_displays = [d for d in st.session_state.displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and d.get('status', 'Available') == 'Available']
+        loc_displays = [d for d in current_displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and d.get('status', 'Available') == 'Available']
         
         if search_query:
             has_s = 's' in search_query
@@ -233,14 +278,18 @@ else:
                 col2.write(f"**Board No:** {item.get('board')}")
                 col3.write(f"**Design:** {item.get('design')}")
                 if col4.button("Mark Unavailable", key=f"unavail_{location}_{item.get('stand')}_{item.get('board')}_{i}"):
-                    for d in st.session_state.displays:
+                    fresh_data = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
+                    for d in fresh_data:
                         if str(d.get('location', '')).strip().lower() == location.strip().lower() and int(d.get('stand', 0)) == int(item.get('stand', 0)) and int(d.get('board', 0)) == int(item.get('board', 0)) and d.get('design') == item.get('design'):
                             d['status'] = 'Unavailable'
+                    st.session_state.displays = fresh_data
+                    save_to_github(DISPLAYS_FILE, fresh_data)
                     st.rerun()
 
     with tab3:
         st.header(f"Unavailable Section & Clear Boards - {location}")
-        unavail_displays = [d for d in st.session_state.displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and d.get('status') == 'Unavailable']
+        fresh_data = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
+        unavail_displays = [d for d in fresh_data if str(d.get('location', '')).strip().lower() == location.strip().lower() and d.get('status') == 'Unavailable']
         
         if not unavail_displays:
             st.info("No unavailable items.")
@@ -253,7 +302,7 @@ else:
                 label="📥 Download / Print Unavailable List",
                 data=text_data,
                 file_name=f"unavailable_tiles_{location.lower()}.txt",
-                mime="text/plain"
+                mime="application/text"
             )
             st.markdown("---")
             
@@ -263,18 +312,19 @@ else:
                 col2.write(f"**Board No:** {item.get('board')}")
                 col3.write(f"**Design:** {item.get('design')}")
                 if col4.button("Remove / Clear Tile", key=f"clear_{location}_{item.get('stand')}_{item.get('board')}_{i}"):
-                    st.session_state.displays = [
-                        d for d in st.session_state.displays 
+                    latest_data = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
+                    latest_data = [
+                        d for d in latest_data 
                         if not (str(d.get('location', '')).strip().lower() == location.strip().lower() and int(d.get('stand', 0)) == int(item.get('stand', 0)) and int(d.get('board', 0)) == int(item.get('board', 0)) and d.get('design') == item.get('design'))
                     ]
+                    st.session_state.displays = latest_data
+                    save_to_github(DISPLAYS_FILE, latest_data)
                     st.success("Item cleared successfully!")
                     st.rerun()
 
-if st.session_state.role == "admin":
+    if st.session_state.role == "admin":
         with tab4:
             st.header("⚙️ Manage Registered Users / Salesmen")
-            
-            # Naya user add karne ka form
             with st.form("add_user_form"):
                 st.subheader("➕ Add New Staff Account")
                 new_staff_id = st.text_input("New User ID (Name)")
