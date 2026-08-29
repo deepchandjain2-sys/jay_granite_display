@@ -8,7 +8,6 @@ import requests
 
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
 
-# --- GitHub Auto-Sync Setup ---
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO_NAME = st.secrets.get("REPO_NAME", "deepchandjain2-sys/jay_granite_display")
 
@@ -90,7 +89,6 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.role = ""
 
-# --- Google Sheet Live Integration ---
 def load_designs_from_sheet():
     try:
         sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
@@ -111,7 +109,6 @@ def load_designs_from_sheet():
 
 design_list = load_designs_from_sheet()
 
-# --- AUTHENTICATION SECTION ---
 if not st.session_state.logged_in:
     st.title("🪟 Jay Granite Tiles - Portal")
     st.subheader("Hiriyur & Davangere Display Management")
@@ -337,7 +334,7 @@ else:
             for i, item in enumerate(unavail_displays):
                 col1, col2, col3, col4 = st.columns([2, 2, 3, 2])
                 col1.write(f"**Stand No:** {item['stand']}")
-                col2.write(f"**Board No:** {item['board']}")
+                col2.write(f"**Data:** {item['board']}") # Minor safety
                 col3.write(f"**Design:** {item['design']}")
                 if col4.button("Remove / Clear Tile", key=f"clear_{location}_{item['stand']}_{item['board']}_{i}"):
                     latest_data = fetch_from_github(DISPLAYS_FILE) or []
