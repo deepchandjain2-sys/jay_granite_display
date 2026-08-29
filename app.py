@@ -270,7 +270,7 @@ else:
                     st.success("Item cleared successfully!")
                     st.rerun()
 
-  if st.session_state.role == "admin":
+if st.session_state.role == "admin":
         with tab4:
             st.header("⚙️ Manage Registered Users / Salesmen")
             
