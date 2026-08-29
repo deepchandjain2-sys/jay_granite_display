@@ -214,7 +214,7 @@ else:
         if item_search:
             filtered_designs = [d for d in design_list if item_search in d.lower()]
         
-        with st.form("assign_form"):
+        with st.form("assign_form", clear_on_submit=False):
             stand_no = st.selectbox("Select Stand No (1 - 50)", list(range(1, 51)), key="m_stand")
             board_no = st.selectbox("Select Board No (1 - 35)", list(range(1, 36)), key="m_board")
             
@@ -225,7 +225,12 @@ else:
                 if not selected_designs:
                     st.warning("Please select at least one tile design.")
                 else:
-                    current_displays = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
+                    current_displays = fetch_from_github(DISPLAYS_FILE)
+                    if current_displays is None:
+                        current_displays = st.session_state.displays
+                    if current_displays is None:
+                        current_displays = []
+                        
                     added_count = 0
                     for design in selected_designs:
                         exists = any(
@@ -244,21 +249,28 @@ else:
                                 'status': 'Available'
                             })
                             added_count += 1
+                    
                     st.session_state.displays = current_displays
                     save_to_github(DISPLAYS_FILE, current_displays)
                     st.success(f"{added_count} tile(s) successfully added to Stand {stand_no}, Board {board_no} at {location}!")
+                    st.rerun()
 
     with tab2:
         st.header(f"Active Displays - {location}")
         
-        current_displays = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
+        current_displays = fetch_from_github(DISPLAYS_FILE)
+        if current_displays is None:
+            current_displays = st.session_state.displays
+            
         search_query = st.text_input("🔍 Search (e.g. S1, B1, S1B1 or Design Name)").strip().lower()
         
-        loc_displays = [
-            d for d in current_displays 
-            if str(d.get('location', '')).strip().lower() == location.strip().lower() 
-            and str(d.get('status', 'Available')).strip().capitalize() == 'Available'
-        ]
+        loc_displays = []
+        if current_displays and isinstance(current_displays, list):
+            loc_displays = [
+                d for d in current_displays 
+                if str(d.get('location', '')).strip().lower() == location.strip().lower() 
+                and str(d.get('status', 'Available')).strip().capitalize() == 'Available'
+            ]
         
         if search_query:
             has_s = 's' in search_query
@@ -310,7 +322,9 @@ else:
     with tab3:
         st.header(f"Unavailable Section & Clear Boards - {location}")
         fresh_data = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
-        unavail_displays = [d for d in fresh_data if str(d.get('location', '')).strip().lower() == location.strip().lower() and d.get('status') == 'Unavailable']
+        unavail_displays = []
+        if fresh_data and isinstance(fresh_data, list):
+            unavail_displays = [d for d in fresh_data if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', '')).strip().capitalize() == 'Unavailable']
         
         if not unavail_displays:
             st.info("No unavailable items.")
