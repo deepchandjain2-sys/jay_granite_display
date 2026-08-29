@@ -4,30 +4,90 @@ import os
 import json
 import re
 import io
+import base64
+import requests
 
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
 
-# --- Persistent Data Storage Files ---
+# --- GitHub Auto-Sync Setup ---
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
+REPO_NAME = st.secrets.get("REPO_NAME", "deepchandjain2-sys/jay_granite_display")
+
 USERS_FILE = "users_data.json"
 DISPLAYS_FILE = "displays_data.json"
 
-def load_json_file(filename, default_val):
-    if os.path.exists(filename):
-        try:
-            with open(filename, "r") as f:
-                return json.load(f)
-        except:
-            return default_val
-    return default_val
+def fetch_from_github(filename):
+    if not GITHUB_TOKEN:
+        if os.path.exists(filename):
+            try:
+                with open(filename, "r") as f:
+                    return json.load(f)
+            except:
+                return None
+        return None
+    
+    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            content_encoded = response.json().get("content", "")
+            decoded_bytes = base64.b64decode(content_encoded)
+            return json.loads(decoded_bytes.decode('utf-8'))
+    except:
+        pass
+    return None
 
-def save_json_file(filename, data):
+def save_to_github(filename, data):
+    # Local save for immediate execution
     with open(filename, "w") as f:
         json.dump(data, f, indent=4)
+        
+    if not GITHUB_TOKEN:
+        return
+        
+    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
+    
+    # Get current file sha if exists
+    sha = None
+    try:
+        res = requests.get(url, headers=headers)
+        if res.status_code == 200:
+            sha = res.json().get("sha")
+    except:
+        pass
+        
+    json_str = json.dumps(data, indent=4)
+    encoded_content = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
+    
+    payload = {
+        "message": f"Auto-update {filename} from Streamlit App",
+        "content": encoded_content,
+        "branch": "main"
+    }
+    if sha:
+        payload["sha"] = sha
+        
+    try:
+        requests.put(url, headers=headers, json=payload)
+    except:
+        pass
 
+# Load initial states from GitHub / Local
 if "users" not in st.session_state:
-    st.session_state.users = load_json_file(USERS_FILE, {"admin": {"password": "123", "mobile": "9999999999", "role": "admin"}})
+    cloud_users = fetch_from_github(USERS_FILE)
+    if cloud_users is not None:
+        st.session_state.users = cloud_users
+    else:
+        st.session_state.users = {"admin": {"password": "123", "mobile": "9999999999", "role": "admin"}}
 
-st.session_state.displays = load_json_file(DISPLAYS_FILE, [])
+if "displays" not in st.session_state:
+    cloud_displays = fetch_from_github(DISPLAYS_FILE)
+    if cloud_displays is not None:
+        st.session_state.displays = cloud_displays
+    else:
+        st.session_state.displays = []
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -37,7 +97,7 @@ if "logged_in" not in st.session_state:
 # --- Google Sheet Live Integration ---
 def load_designs_from_sheet():
     try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=0&single=true&output=csv"
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
         designs = df[column_name].dropna().astype(str).tolist()
@@ -103,7 +163,7 @@ if not st.session_state.logged_in:
                         "mobile": new_mobile,
                         "role": role_choice
                     }
-                    save_json_file(USERS_FILE, st.session_state.users)
+                    save_to_github(USERS_FILE, st.session_state.users)
                     st.success("Registration Successful! Please switch to Login tab.")
 
     elif auth_mode == "Forgot Password":
@@ -119,7 +179,7 @@ if not st.session_state.logged_in:
                         udata["password"] = f_new_pass
                         found = True
                 if found:
-                    save_json_file(USERS_FILE, st.session_state.users)
+                    save_to_github(USERS_FILE, st.session_state.users)
                     st.success("Password updated successfully!")
                 else:
                     st.error("Mobile number not found.")
@@ -129,7 +189,7 @@ else:
     
     # --- DOWNLOAD EXCEL BACKUP ONLY FOR ADMIN ---
     if st.session_state.role == "admin":
-        current_data_for_backup = load_json_file(DISPLAYS_FILE, [])
+        current_data_for_backup = fetch_from_github(DISPLAYS_FILE) or []
         if current_data_for_backup:
             df_backup = pd.DataFrame(current_data_for_backup)
             output = io.BytesIO()
@@ -153,7 +213,7 @@ else:
             try:
                 df_restored = pd.read_excel(uploaded_backup)
                 restored_data = df_restored.to_dict(orient="records")
-                save_json_file(DISPLAYS_FILE, restored_data)
+                save_to_github(DISPLAYS_FILE, restored_data)
                 st.sidebar.success("Data restored successfully! Please refresh.")
             except Exception as e:
                 st.sidebar.error("Error reading file.")
@@ -165,7 +225,6 @@ else:
     st.title("🏢 Showroom Display Management")
     location = st.selectbox("Select Showroom Location", ["Hiriyur", "Davangere"])
     
-    # Tabs list (Admin ke liye Manage Users ka tab bhi rahega)
     if st.session_state.role == "admin":
         tab1, tab2, tab3, tab4 = st.tabs(["📌 Assign Multiple Tiles", "📋 Selected Displays", "⚠️ Unavailable & Clear", "⚙️ Manage Users (Admin)"])
     else:
@@ -190,7 +249,7 @@ else:
                 if not selected_designs:
                     st.warning("Please select at least one tile design.")
                 else:
-                    current_displays = load_json_file(DISPLAYS_FILE, [])
+                    current_displays = fetch_from_github(DISPLAYS_FILE) or []
                     added_count = 0
                     for design in selected_designs:
                         exists = any(
@@ -209,13 +268,13 @@ else:
                                 'status': 'Available'
                             })
                             added_count += 1
-                    save_json_file(DISPLAYS_FILE, current_displays)
+                    save_to_github(DISPLAYS_FILE, current_displays)
                     st.success(f"{added_count} tile(s) successfully added to Stand {stand_no}, Board {board_no} at {location}!")
 
     with tab2:
         st.header(f"Active Displays - {location}")
         
-        current_displays = load_json_file(DISPLAYS_FILE, [])
+        current_displays = fetch_from_github(DISPLAYS_FILE) or []
         search_query = st.text_input("🔍 Search (e.g. S1, B1, S1B1 or Design Name)").strip().lower()
         
         loc_displays = [d for d in current_displays if d['location'] == location and d['status'] == 'Available']
@@ -259,16 +318,16 @@ else:
                 col2.write(f"**Board No:** {item['board']}")
                 col3.write(f"**Design:** {item['design']}")
                 if col4.button("Mark Unavailable", key=f"unavail_{location}_{item['stand']}_{item['board']}_{i}"):
-                    fresh_data = load_json_file(DISPLAYS_FILE, [])
+                    fresh_data = fetch_from_github(DISPLAYS_FILE) or []
                     for d in fresh_data:
                         if d['location'] == location and d['stand'] == item['stand'] and d['board'] == item['board'] and d['design'] == item['design']:
                             d['status'] = 'Unavailable'
-                    save_json_file(DISPLAYS_FILE, fresh_data)
+                    save_to_github(DISPLAYS_FILE, fresh_data)
                     st.rerun()
 
     with tab3:
         st.header(f"Unavailable Section & Clear Boards - {location}")
-        fresh_data = load_json_file(DISPLAYS_FILE, [])
+        fresh_data = fetch_from_github(DISPLAYS_FILE) or []
         unavail_displays = [d for d in fresh_data if d['location'] == location and d['status'] == 'Unavailable']
         
         if not unavail_displays:
@@ -293,22 +352,21 @@ else:
                 col2.write(f"**Board No:** {item['board']}")
                 col3.write(f"**Design:** {item['design']}")
                 if col4.button("Remove / Clear Tile", key=f"clear_{location}_{item['stand']}_{item['board']}_{i}"):
-                    latest_data = load_json_file(DISPLAYS_FILE, [])
+                    latest_data = fetch_from_github(DISPLAYS_FILE) or []
                     latest_data = [
                         d for d in latest_data 
                         if not (d['location'] == location and d['stand'] == item['stand'] and d['board'] == item['board'] and d['design'] == item['design'])
                     ]
-                    save_json_file(DISPLAYS_FILE, latest_data)
+                    save_to_github(DISPLAYS_FILE, latest_data)
                     st.success("Item cleared successfully!")
                     st.rerun()
 
-    # --- ADMIN TAB TO DELETE USERS ---
     if st.session_state.role == "admin":
         with tab4:
             st.header("⚙️ Manage Registered Users / Salesmen")
             st.write("Yahan se aap kisi bhi salesman ya user ka account delete kar sakte hain taaki woh dobara login na kar sakein.")
             
-            users_data = load_json_file(USERS_FILE, {})
+            users_data = fetch_from_github(USERS_FILE) or {}
             for uname, udata in list(users_data.items()):
                 col1, col2, col3 = st.columns([3, 3, 2])
                 col1.write(f"**User ID:** {uname}")
@@ -318,7 +376,7 @@ else:
                     if col3.button("🗑️ Delete User", key=f"del_user_{uname}"):
                         if uname in users_data:
                             del users_data[uname]
-                            save_json_file(USERS_FILE, users_data)
+                            save_to_github(USERS_FILE, users_data)
                             st.session_state.users = users_data
                             st.success(f"User '{uname}' successfully deleted!")
                             st.rerun()
