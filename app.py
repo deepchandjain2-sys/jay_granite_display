@@ -270,9 +270,35 @@ else:
                     st.success("Item cleared successfully!")
                     st.rerun()
 
-    if st.session_state.role == "admin":
+  if st.session_state.role == "admin":
         with tab4:
             st.header("⚙️ Manage Registered Users / Salesmen")
+            
+            # Naya user add karne ka form
+            with st.form("add_user_form"):
+                st.subheader("➕ Add New Staff Account")
+                new_staff_id = st.text_input("New User ID (Name)")
+                new_staff_mobile = st.text_input("Staff Mobile Number")
+                new_staff_pass = st.text_input("Staff Password", type="password")
+                staff_role = st.selectbox("Role", ["salesman", "admin"])
+                add_btn = st.form_submit_button("Create User Account")
+                
+                if add_btn:
+                    if not new_staff_id or not new_staff_mobile or not new_staff_pass:
+                        st.warning("Please fill all fields.")
+                    elif new_staff_id in st.session_state.users:
+                        st.error("User ID already exists!")
+                    else:
+                        st.session_state.users[new_staff_id] = {
+                            "password": new_staff_pass,
+                            "mobile": new_staff_mobile,
+                            "role": staff_role
+                        }
+                        st.success(f"Staff account '{new_staff_id}' successfully created!")
+                        st.rerun()
+            
+            st.markdown("---")
+            st.subheader("📋 Existing Users List")
             for uname, udata in list(st.session_state.users.items()):
                 col1, col2, col3 = st.columns([3, 3, 2])
                 col1.write(f"**User ID:** {uname}")
