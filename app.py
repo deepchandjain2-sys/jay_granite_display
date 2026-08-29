@@ -248,14 +248,14 @@ else:
                     save_to_github(DISPLAYS_FILE, current_displays)
                     st.success(f"{added_count} tile(s) successfully added to Stand {stand_no}, Board {board_no} at {location}!")
 
-    with tab2:
+   with tab2:
         st.header(f"Active Displays - {location}")
         
         current_displays = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays
         search_query = st.text_input("🔍 Search (e.g. S1, B1, S1B1 or Design Name)").strip().lower()
         
-        loc_displays = [d for d in current_displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and d.get('status', 'Available') == 'Available']
-        
+        # Location match ko flexible banaya gaya hai
+        loc_displays = [d for d in current_displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', 'Available')).strip().capitalize() == 'Available']        
         if search_query:
             has_s = 's' in search_query
             has_b = 'b' in search_query
