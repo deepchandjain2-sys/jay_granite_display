@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import json
 import re
-import io
 import base64
 import requests
 
@@ -39,7 +38,6 @@ def fetch_from_github(filename):
     return None
 
 def save_to_github(filename, data):
-    # Local save for immediate execution
     with open(filename, "w") as f:
         json.dump(data, f, indent=4)
         
@@ -49,7 +47,6 @@ def save_to_github(filename, data):
     url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
     
-    # Get current file sha if exists
     sha = None
     try:
         res = requests.get(url, headers=headers)
@@ -74,7 +71,6 @@ def save_to_github(filename, data):
     except:
         pass
 
-# Load initial states from GitHub / Local
 if "users" not in st.session_state:
     cloud_users = fetch_from_github(USERS_FILE)
     if cloud_users is not None:
@@ -187,36 +183,28 @@ if not st.session_state.logged_in:
 else:
     st.sidebar.title(f"👤 {st.session_state.username} ({st.session_state.role.capitalize()})")
     
-    # --- DOWNLOAD EXCEL BACKUP ONLY FOR ADMIN ---
     if st.session_state.role == "admin":
         current_data_for_backup = fetch_from_github(DISPLAYS_FILE) or []
         if current_data_for_backup:
-            df_backup = pd.DataFrame(current_data_for_backup)
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_backup.to_excel(writer, index=False, sheet_name='Displays')
-            excel_data = output.getvalue()
-            
+            json_backup_str = json.dumps(current_data_for_backup, indent=4)
             st.sidebar.download_button(
-                label="📥 Download Excel Backup",
-                data=excel_data,
-                file_name="displays_backup.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                help="Click to download all saved board entries as an Excel spreadsheet."
+                label="📥 Download JSON Backup",
+                data=json_backup_str,
+                file_name="displays_backup.json",
+                mime="application/json",
+                help="Click to download all saved board entries as a JSON backup."
             )
             
-        # --- RESTORE BACKUP UPLOAD FOR ADMIN ---
         st.sidebar.markdown("---")
         st.sidebar.subheader("🔄 Restore Data")
-        uploaded_backup = st.sidebar.file_uploader("Upload Backup Excel (.xlsx)", type=["xlsx"])
-        if uploaded_backup is not None:
+        uploaded_json_backup = st.sidebar.file_uploader("Upload Backup JSON (.json)", type=["json"])
+        if uploaded_json_backup is not None:
             try:
-                df_restored = pd.read_excel(uploaded_backup)
-                restored_data = df_restored.to_dict(orient="records")
+                restored_data = json.load(uploaded_json_backup)
                 save_to_github(DISPLAYS_FILE, restored_data)
                 st.sidebar.success("Data restored successfully! Please refresh.")
             except Exception as e:
-                st.sidebar.error("Error reading file.")
+                st.sidebar.error("Error reading JSON file.")
     
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
