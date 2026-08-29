@@ -37,7 +37,7 @@ if "logged_in" not in st.session_state:
 # --- Google Sheet Live Integration ---
 def load_designs_from_sheet():
     try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=0&single=true&output=csv"
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
         designs = df[column_name].dropna().astype(str).tolist()
@@ -144,6 +144,19 @@ else:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 help="Click to download all saved board entries as an Excel spreadsheet."
             )
+            
+        # --- RESTORE BACKUP UPLOAD FOR ADMIN ---
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("🔄 Restore Data")
+        uploaded_backup = st.sidebar.file_uploader("Upload Backup Excel (.xlsx)", type=["xlsx"])
+        if uploaded_backup is not None:
+            try:
+                df_restored = pd.read_excel(uploaded_backup)
+                restored_data = df_restored.to_dict(orient="records")
+                save_json_file(DISPLAYS_FILE, restored_data)
+                st.sidebar.success("Data restored successfully! Please refresh.")
+            except Exception as e:
+                st.sidebar.error("Error reading file.")
     
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
@@ -152,7 +165,7 @@ else:
     st.title("🏢 Showroom Display Management")
     location = st.selectbox("Select Showroom Location", ["Hiriyur", "Davangere"])
     
-    # Tabs list (Agar admin hai toh Manage Users ka tab bhi dikhega)
+    # Tabs list (Admin ke liye Manage Users ka tab bhi rahega)
     if st.session_state.role == "admin":
         tab1, tab2, tab3, tab4 = st.tabs(["📌 Assign Multiple Tiles", "📋 Selected Displays", "⚠️ Unavailable & Clear", "⚙️ Manage Users (Admin)"])
     else:
@@ -301,7 +314,7 @@ else:
                 col1.write(f"**User ID:** {uname}")
                 col2.write(f"**Role:** {udata.get('role', 'salesman').capitalize()} (Mobile: {udata.get('mobile', '')})")
                 
-                if uname != "admin": # Admin khud ko delete nahi kar sakta
+                if uname != "admin":
                     if col3.button("🗑️ Delete User", key=f"del_user_{uname}"):
                         if uname in users_data:
                             del users_data[uname]
