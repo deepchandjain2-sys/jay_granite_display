@@ -70,7 +70,6 @@ def save_to_github(filename, data):
     except:
         pass
 
-# Safe User Session Loading (Never resets admin if exists)
 if "users" not in st.session_state:
     cloud_users = fetch_from_github(USERS_FILE)
     if cloud_users is not None and isinstance(cloud_users, dict) and len(cloud_users) > 0:
@@ -78,13 +77,6 @@ if "users" not in st.session_state:
     else:
         st.session_state.users = {"admin": {"password": "123", "mobile": "9999999999", "role": "admin"}}
         save_to_github(USERS_FILE, st.session_state.users)
-
-if "displays" not in st.session_state:
-    cloud_displays = fetch_from_github(DISPLAYS_FILE)
-    if cloud_displays is not None:
-        st.session_state.displays = cloud_displays
-    else:
-        st.session_state.displays = []
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -200,7 +192,6 @@ else:
         if uploaded_json_backup is not None:
             try:
                 raw_data = json.load(uploaded_json_backup)
-                # Ensure it's a list of display items, not users dict
                 if isinstance(raw_data, list):
                     save_to_github(DISPLAYS_FILE, raw_data)
                     st.sidebar.success("Displays restored successfully! Please refresh.")
@@ -244,9 +235,9 @@ else:
                     added_count = 0
                     for design in selected_designs:
                         exists = any(
-                            d.get('location') == location and 
-                            d.get('stand') == stand_no and 
-                            d.get('board') == board_no and 
+                            str(d.get('location', '')).strip().lower() == location.strip().lower() and 
+                            int(d.get('stand', 0)) == stand_no and 
+                            int(d.get('board', 0)) == board_no and 
                             d.get('design') == design 
                             for d in current_displays
                         )
@@ -268,7 +259,7 @@ else:
         current_displays = fetch_from_github(DISPLAYS_FILE) or []
         search_query = st.text_input("🔍 Search (e.g. S1, B1, S1B1 or Design Name)").strip().lower()
         
-        loc_displays = [d for d in current_displays if d.get('location') == location and d.get('status') == 'Available']
+        loc_displays = [d for d in current_displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and d.get('status', 'Available') == 'Available']
         
         if search_query:
             has_s = 's' in search_query
@@ -301,7 +292,7 @@ else:
         if not loc_displays:
             st.info("No matching active displays found.")
         else:
-            loc_displays = sorted(loc_displays, key=lambda x: (x.get('stand', 0), x.get('board', 0)))
+            loc_displays = sorted(loc_displays, key=lambda x: (int(x.get('stand', 0)), int(x.get('board', 0))))
             
             for i, item in enumerate(loc_displays):
                 col1, col2, col3, col4 = st.columns([2, 2, 4, 2])
@@ -311,7 +302,7 @@ else:
                 if col4.button("Mark Unavailable", key=f"unavail_{location}_{item.get('stand')}_{item.get('board')}_{i}"):
                     fresh_data = fetch_from_github(DISPLAYS_FILE) or []
                     for d in fresh_data:
-                        if d.get('location') == location and d.get('stand') == item.get('stand') and d.get('board') == item.get('board') and d.get('design') == item.get('design'):
+                        if str(d.get('location', '')).strip().lower() == location.strip().lower() and int(d.get('stand', 0)) == int(item.get('stand', 0)) and int(d.get('board', 0)) == int(item.get('board', 0)) and d.get('design') == item.get('design'):
                             d['status'] = 'Unavailable'
                     save_to_github(DISPLAYS_FILE, fresh_data)
                     st.rerun()
@@ -319,7 +310,7 @@ else:
     with tab3:
         st.header(f"Unavailable Section & Clear Boards - {location}")
         fresh_data = fetch_from_github(DISPLAYS_FILE) or []
-        unavail_displays = [d for d in fresh_data if d.get('location') == location and d.get('status') == 'Unavailable']
+        unavail_displays = [d for d in fresh_data if str(d.get('location', '')).strip().lower() == location.strip().lower() and d.get('status') == 'Unavailable']
         
         if not unavail_displays:
             st.info("No unavailable items.")
@@ -346,7 +337,7 @@ else:
                     latest_data = fetch_from_github(DISPLAYS_FILE) or []
                     latest_data = [
                         d for d in latest_data 
-                        if not (d.get('location') == location and d.get('stand') == item.get('stand') and d.get('board') == item.get('board') and d.get('design') == item.get('design'))
+                        if not (str(d.get('location', '')).strip().lower() == location.strip().lower() and int(d.get('stand', 0)) == int(item.get('stand', 0)) and int(d.get('board', 0)) == int(item.get('board', 0)) and d.get('design') == item.get('design'))
                     ]
                     save_to_github(DISPLAYS_FILE, latest_data)
                     st.success("Item cleared successfully!")
