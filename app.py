@@ -13,9 +13,8 @@ DISPLAYS_FILE = "displays_data.json"
 if "users" not in st.session_state:
     st.session_state.users = {
         "admin": {"password": "123", "mobile": "9999999999", "role": "admin"},
-        "deepchand": {"password": "123", "mobile": "9888888888", "role": "admin"}
+        "DEEPCHAND JAIN": {"password": "deep1965", "mobile": "9888888888", "role": "admin"}
     }
-
 if "displays" not in st.session_state:
     st.session_state.displays = []
 
