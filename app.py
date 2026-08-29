@@ -177,6 +177,23 @@ if not st.session_state.logged_in:
 else:
     st.sidebar.title(f"👤 {st.session_state.username} ({st.session_state.role.capitalize()})")
     
+    if st.session_state.role == "admin":
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("🔄 Restore Displays Data")
+        uploaded_json_backup = st.sidebar.file_uploader("Upload Displays JSON (.json)", type=["json"])
+        if uploaded_json_backup is not None:
+            try:
+                raw_data = json.load(uploaded_json_backup)
+                if isinstance(raw_data, list):
+                    st.session_state.displays = raw_data
+                    save_to_github(DISPLAYS_FILE, raw_data)
+                    st.sidebar.success("Displays restored & synced to cloud successfully!")
+                    st.rerun()
+                else:
+                    st.sidebar.error("Invalid format.")
+            except Exception as e:
+                st.sidebar.error("Error reading JSON file.")
+    
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
