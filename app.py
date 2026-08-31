@@ -40,13 +40,17 @@ else:
 if "displays" not in st.session_state:
     st.session_state.displays = load_local_data(DISPLAYS_FILE) or []
 
+# Queue for holding selected designs safely before final save
+if "temp_design_queue" not in st.session_state:
+    st.session_state.temp_design_queue = []
+
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.role = ""
 
 def load_designs_from_sheet():
-    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
     try:
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
@@ -186,23 +190,34 @@ else:
         if company_filter:
             filtered_designs = [d for d in design_list if company_filter in d.lower()]
         
-        # Unique session key added to keep selected items intact until button is clicked
-        selected_designs = st.multiselect(
-            "Select Multiple Tile Designs for Stand " + str(stand_no) + ", Board " + str(board_no), 
-            filtered_designs, 
-            key="multi_designs_input"
-        )
+        # Select single design from filtered list to add to queue safely
+        chosen_design = st.selectbox("Select Tile Design to Add", filtered_designs, key="single_design_selector")
         
-        if st.button("Add All Selected Tiles to Board"):
-            if not selected_designs:
-                st.warning("Please select at least one tile design.")
-            else:
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("➕ Add to Queue"):
+                if chosen_design and chosen_design not in st.session_state.temp_design_queue:
+                    st.session_state.temp_design_queue.append(chosen_design)
+                    st.success(f"Added '{chosen_design}' to selection queue!")
+                    st.rerun()
+        with col_btn2:
+            if st.button("🗑️ Clear Queue"):
+                st.session_state.temp_design_queue = []
+                st.info("Queue cleared.")
+                st.rerun()
+        
+        if st.session_state.temp_design_queue:
+            st.markdown("### 📋 Queued Tiles to Save:")
+            for idx, item in enumerate(st.session_state.temp_design_queue):
+                st.write(f"{idx + 1}. {item}")
+            
+            if st.button("💾 Save All Queued Tiles to Board"):
                 current_displays = load_local_data(DISPLAYS_FILE)
                 if not current_displays:
                     current_displays = st.session_state.displays or []
                     
                 added_count = 0
-                for design in selected_designs:
+                for design in st.session_state.temp_design_queue:
                     exists = any(
                         str(d.get('location', '')).strip().lower() == location.strip().lower() and 
                         int(d.get('stand', 0)) == stand_no and 
@@ -222,11 +237,8 @@ else:
                 
                 st.session_state.displays = current_displays
                 save_local_data(DISPLAYS_FILE, current_displays)
-                
-                # Clear multiselect state safely after saving
-                st.session_state["multi_designs_input"] = []
-                
-                st.success(f"{added_count} tile(s) successfully added to Stand {stand_no}, Board {board_no}!")
+                st.session_state.temp_design_queue = []  # Clear queue after save
+                st.success(f"{added_count} tile(s) successfully saved to Stand {stand_no}, Board {board_no}!")
                 st.rerun()
 
     with tab2:
