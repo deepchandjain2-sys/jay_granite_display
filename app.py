@@ -15,8 +15,8 @@ def load_local_data(filename):
             with open(filename, "r") as f:
                 return json.load(f)
         except:
-            return []
-    return []
+            return None
+    return None
 
 def save_local_data(filename, data):
     try:
@@ -25,14 +25,21 @@ def save_local_data(filename, data):
     except:
         pass
 
-if "users" not in st.session_state:
-    st.session_state.users = {
-        "admin": {"password": "123", "mobile": "9999999999", "role": "admin"},
-        "DEEPCHAND JAIN": {"password": "deep1965", "mobile": "9888888888", "role": "admin"}
-    }
+# Initialize Users Data
+default_users = {
+    "admin": {"password": "123", "mobile": "9999999999", "role": "admin"},
+    "DEEPCHAND JAIN": {"password": "deep1965", "mobile": "9888888888", "role": "admin"}
+}
+
+saved_users = load_local_data(USERS_FILE)
+if saved_users and isinstance(saved_users, dict):
+    st.session_state.users = saved_users
+else:
+    st.session_state.users = default_users
+    save_local_data(USERS_FILE, default_users)
 
 if "displays" not in st.session_state:
-    st.session_state.displays = load_local_data(DISPLAYS_FILE)
+    st.session_state.displays = load_local_data(DISPLAYS_FILE) or []
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -40,7 +47,7 @@ if "logged_in" not in st.session_state:
     st.session_state.role = ""
 
 def load_designs_from_sheet():
-    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
     try:
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
@@ -73,15 +80,19 @@ if not st.session_state.logged_in:
             
             if submit:
                 matched_user = None
-                for uname, udata in st.session_state.users.items():
-                    if uname == user_id or udata["mobile"] == user_id:
-                        if udata["password"] == password:
+                user_role = ""
+                # Refresh users from file check
+                current_users = load_local_data(USERS_FILE) or st.session_state.users
+                for uname, udata in current_users.items():
+                    if uname.strip().lower() == user_id.strip().lower() or str(udata.get("mobile")) == str(user_id).strip():
+                        if str(udata.get("password")) == str(password):
                             matched_user = uname
-                            st.session_state.role = udata["role"]
+                            user_role = udata.get("role", "salesman")
                 
                 if matched_user:
                     st.session_state.logged_in = True
                     st.session_state.username = matched_user
+                    st.session_state.role = user_role
                     st.success("Login Successful!")
                     st.rerun()
                 else:
@@ -96,16 +107,19 @@ if not st.session_state.logged_in:
             reg_submit = st.form_submit_button("Register")
             
             if reg_submit:
-                if new_user in st.session_state.users:
+                current_users = load_local_data(USERS_FILE) or st.session_state.users
+                if new_user in current_users:
                     st.error("User ID already exists!")
                 elif not new_user or not new_mobile or not new_pass:
                     st.warning("Please fill all fields.")
                 else:
-                    st.session_state.users[new_user] = {
+                    current_users[new_user] = {
                         "password": new_pass,
                         "mobile": new_mobile,
                         "role": role_choice
                     }
+                    st.session_state.users = current_users
+                    save_local_data(USERS_FILE, current_users)
                     st.success("Registration Successful! Please switch to Login tab.")
 
     elif auth_mode == "Forgot Password":
@@ -115,12 +129,15 @@ if not st.session_state.logged_in:
             f_submit = st.form_submit_button("Update Password")
             
             if f_submit:
+                current_users = load_local_data(USERS_FILE) or st.session_state.users
                 found = False
-                for uname, udata in st.session_state.users.items():
-                    if udata["mobile"] == f_mobile:
+                for uname, udata in current_users.items():
+                    if str(udata.get("mobile")) == str(f_mobile).strip():
                         udata["password"] = f_new_pass
                         found = True
                 if found:
+                    st.session_state.users = current_users
+                    save_local_data(USERS_FILE, current_users)
                     st.success("Password updated successfully!")
                 else:
                     st.error("Mobile number not found.")
@@ -160,7 +177,6 @@ else:
     with tab1:
         st.header(f"Assign Multiple Tiles on Same Board - {location}")
         
-        # Stand and Board numbers fixed outside form so they don't reset automatically
         col_s, col_b = st.columns(2)
         with col_s:
             stand_no = st.selectbox("Select Stand No (1 - 50)", list(range(1, 51)), key="fixed_stand")
@@ -327,30 +343,36 @@ else:
                 add_btn = st.form_submit_button("Create User Account")
                 
                 if add_btn:
+                    current_users = load_local_data(USERS_FILE) or st.session_state.users
                     if not new_staff_id or not new_staff_mobile or not new_staff_pass:
                         st.warning("Please fill all fields.")
-                    elif new_staff_id in st.session_state.users:
+                    elif new_staff_id in current_users:
                         st.error("User ID already exists!")
                     else:
-                        st.session_state.users[new_staff_id] = {
+                        current_users[new_staff_id] = {
                             "password": new_staff_pass,
                             "mobile": new_staff_mobile,
                             "role": staff_role
                         }
+                        st.session_state.users = current_users
+                        save_local_data(USERS_FILE, current_users)
                         st.success(f"Staff account '{new_staff_id}' successfully created!")
                         st.rerun()
             
             st.markdown("---")
             st.subheader("📋 Existing Users List")
-            for uname, udata in list(st.session_state.users.items()):
+            current_users = load_local_data(USERS_FILE) or st.session_state.users
+            for uname, udata in list(current_users.items()):
                 col1, col2, col3 = st.columns([3, 3, 2])
                 col1.write(f"**User ID:** {uname}")
-                col2.write(f"**Role:** {udata.get('role', 'salesman').capitalize()} (Mobile: {udata.get('mobile', '')})")
+                col2.write(f**Role:** {udata.get('role', 'salesman').capitalize()} (Mobile: {udata.get('mobile', '')})")
                 
                 if uname != "admin":
                     if col3.button("🗑️ Delete User", key=f"del_user_{uname}"):
-                        if uname in st.session_state.users:
-                            del st.session_state.users[uname]
+                        if uname in current_users:
+                            del current_users[uname]
+                            st.session_state.users = current_users
+                            save_local_data(USERS_FILE, current_users)
                             st.success(f"User '{uname}' successfully deleted!")
                             st.rerun()
                 else:
