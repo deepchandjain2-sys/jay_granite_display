@@ -25,7 +25,6 @@ def save_local_data(filename, data):
     except:
         pass
 
-# Initialize Users Data
 default_users = {
     "admin": {"password": "123", "mobile": "9999999999", "role": "admin"},
     "DEEPCHAND JAIN": {"password": "deep1965", "mobile": "9888888888", "role": "admin"}
@@ -81,7 +80,6 @@ if not st.session_state.logged_in:
             if submit:
                 matched_user = None
                 user_role = ""
-                # Refresh users from file check
                 current_users = load_local_data(USERS_FILE) or st.session_state.users
                 for uname, udata in current_users.items():
                     if uname.strip().lower() == user_id.strip().lower() or str(udata.get("mobile")) == str(user_id).strip():
@@ -365,7 +363,7 @@ else:
             for uname, udata in list(current_users.items()):
                 col1, col2, col3 = st.columns([3, 3, 2])
                 col1.write(f"**User ID:** {uname}")
-                col2.write(f**Role:** {udata.get('role', 'salesman').capitalize()} (Mobile: {udata.get('mobile', '')})")
+                col2.write(f"**Role:** {udata.get('role', 'salesman').capitalize()} (Mobile: {udata.get('mobile', '')})")
                 
                 if uname != "admin":
                     if col3.button("🗑️ Delete User", key=f"del_user_{uname}"):
