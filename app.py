@@ -46,7 +46,7 @@ if "logged_in" not in st.session_state:
     st.session_state.role = ""
 
 def load_designs_from_sheet():
-    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
     try:
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
@@ -186,7 +186,12 @@ else:
         if company_filter:
             filtered_designs = [d for d in design_list if company_filter in d.lower()]
         
-        selected_designs = st.multiselect("Select Multiple Tile Designs for Stand " + str(stand_no) + ", Board " + str(board_no), filtered_designs)
+        # Unique session key added to keep selected items intact until button is clicked
+        selected_designs = st.multiselect(
+            "Select Multiple Tile Designs for Stand " + str(stand_no) + ", Board " + str(board_no), 
+            filtered_designs, 
+            key="multi_designs_input"
+        )
         
         if st.button("Add All Selected Tiles to Board"):
             if not selected_designs:
@@ -217,6 +222,10 @@ else:
                 
                 st.session_state.displays = current_displays
                 save_local_data(DISPLAYS_FILE, current_displays)
+                
+                # Clear multiselect state safely after saving
+                st.session_state["multi_designs_input"] = []
+                
                 st.success(f"{added_count} tile(s) successfully added to Stand {stand_no}, Board {board_no}!")
                 st.rerun()
 
