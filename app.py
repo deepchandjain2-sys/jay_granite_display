@@ -40,7 +40,7 @@ if "logged_in" not in st.session_state:
     st.session_state.role = ""
 
 def load_designs_from_sheet():
-    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
     try:
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
@@ -160,49 +160,51 @@ else:
     with tab1:
         st.header(f"Assign Multiple Tiles on Same Board - {location}")
         
+        # Stand and Board numbers fixed outside form so they don't reset automatically
+        col_s, col_b = st.columns(2)
+        with col_s:
+            stand_no = st.selectbox("Select Stand No (1 - 50)", list(range(1, 51)), key="fixed_stand")
+        with col_b:
+            board_no = st.selectbox("Select Board No (1 - 35)", list(range(1, 36)), key="fixed_board")
+        
         company_filter = st.text_input("🔎 Filter by Company / Name (e.g. ITALICA, KAG, Johnson)").strip().lower()
         filtered_designs = design_list
         if company_filter:
             filtered_designs = [d for d in design_list if company_filter in d.lower()]
         
-        with st.form("assign_form", clear_on_submit=True):
-            stand_no = st.selectbox("Select Stand No (1 - 50)", list(range(1, 51)), key="m_stand")
-            board_no = st.selectbox("Select Board No (1 - 35)", list(range(1, 36)), key="m_board")
-            
-            selected_designs = st.multiselect("Select Multiple Tile Designs", filtered_designs)
-            
-            assign_btn = st.form_submit_button("Add All Selected Tiles to Board")
-            if assign_btn:
-                if not selected_designs:
-                    st.warning("Please select at least one tile design.")
-                else:
-                    current_displays = load_local_data(DISPLAYS_FILE)
-                    if not current_displays:
-                        current_displays = st.session_state.displays or []
-                        
-                    added_count = 0
-                    for design in selected_designs:
-                        exists = any(
-                            str(d.get('location', '')).strip().lower() == location.strip().lower() and 
-                            int(d.get('stand', 0)) == stand_no and 
-                            int(d.get('board', 0)) == board_no and 
-                            str(d.get('design', '')).strip() == str(design).strip()
-                            for d in current_displays
-                        )
-                        if not exists:
-                            current_displays.append({
-                                'location': location,
-                                'stand': stand_no,
-                                'board': board_no,
-                                'design': design,
-                                'status': 'Available'
-                            })
-                            added_count += 1
+        selected_designs = st.multiselect("Select Multiple Tile Designs for Stand " + str(stand_no) + ", Board " + str(board_no), filtered_designs)
+        
+        if st.button("Add All Selected Tiles to Board"):
+            if not selected_designs:
+                st.warning("Please select at least one tile design.")
+            else:
+                current_displays = load_local_data(DISPLAYS_FILE)
+                if not current_displays:
+                    current_displays = st.session_state.displays or []
                     
-                    st.session_state.displays = current_displays
-                    save_local_data(DISPLAYS_FILE, current_displays)
-                    st.success(f"{added_count} tile(s) successfully added!")
-                    st.rerun()
+                added_count = 0
+                for design in selected_designs:
+                    exists = any(
+                        str(d.get('location', '')).strip().lower() == location.strip().lower() and 
+                        int(d.get('stand', 0)) == stand_no and 
+                        int(d.get('board', 0)) == board_no and 
+                        str(d.get('design', '')).strip() == str(design).strip()
+                        for d in current_displays
+                    )
+                    if not exists:
+                        current_displays.append({
+                            'location': location,
+                            'stand': stand_no,
+                            'board': board_no,
+                            'design': design,
+                            'status': 'Available'
+                        })
+                        added_count += 1
+                
+                st.session_state.displays = current_displays
+                save_local_data(DISPLAYS_FILE, current_displays)
+                st.success(f"{added_count} tile(s) successfully added to Stand {stand_no}, Board {board_no}!")
+                st.rerun()
 
     with tab2:
         st.header(f"Active Displays - {location}")
