@@ -3,70 +3,25 @@ import pandas as pd
 import os
 import json
 import re
-import base64
-import requests
 
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
 
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-REPO_NAME = st.secrets.get("REPO_NAME", "deepchandjain2-sys/jay_granite_display")
-
-USERS_FILE = "users_data.json"
 DISPLAYS_FILE = "displays_data.json"
+USERS_FILE = "users_data.json"
 
-def fetch_from_github(filename):
-    if not GITHUB_TOKEN:
-        if os.path.exists(filename):
-            try:
-                with open(filename, "r") as f:
-                    return json.load(f)
-            except:
-                return None
-        return None
-    
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            content_encoded = response.json().get("content", "")
-            decoded_bytes = base64.b64decode(content_encoded)
-            return json.loads(decoded_bytes.decode('utf-8'))
-    except:
-        pass
+def load_local_data(filename):
+    if os.path.exists(filename):
+        try:
+            with open(filename, "r") as f:
+                return json.load(f)
+        except:
+            return None
     return None
 
-def save_to_github(filename, data):
-    with open(filename, "w") as f:
-        json.dump(data, f, indent=4)
-        
-    if not GITHUB_TOKEN:
-        return
-        
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-    
-    sha = None
+def save_local_data(filename, data):
     try:
-        res = requests.get(url, headers=headers)
-        if res.status_code == 200:
-            sha = res.json().get("sha")
-    except:
-        pass
-        
-    json_str = json.dumps(data, indent=4)
-    encoded_content = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
-    
-    payload = {
-        "message": f"Auto-update {filename} from Streamlit App",
-        "content": encoded_content,
-        "branch": "main"
-    }
-    if sha:
-        payload["sha"] = sha
-        
-    try:
-        requests.put(url, headers=headers, json=payload)
+        with open(filename, "w") as f:
+            json.dump(data, f, indent=4)
     except:
         pass
 
@@ -75,27 +30,15 @@ default_users = {
     "DEEPCHAND JAIN": {"password": "deep1965", "mobile": "9888888888", "role": "admin"}
 }
 
-saved_users = fetch_from_github(USERS_FILE)
-if not saved_users or not isinstance(saved_users, dict):
-    if os.path.exists(USERS_FILE):
-        try:
-            with open(USERS_FILE, "r") as f:
-                saved_users = json.load(f)
-        except:
-            pass
-
+saved_users = load_local_data(USERS_FILE)
 if saved_users and isinstance(saved_users, dict):
     st.session_state.users = saved_users
 else:
     st.session_state.users = default_users
-    save_to_github(USERS_FILE, default_users)
+    save_local_data(USERS_FILE, default_users)
 
 if "displays" not in st.session_state:
-    cloud_displays = fetch_from_github(DISPLAYS_FILE)
-    if cloud_displays is not None and isinstance(cloud_displays, list):
-        st.session_state.displays = cloud_displays
-    else:
-        st.session_state.displays = []
+    st.session_state.displays = load_local_data(DISPLAYS_FILE) or []
 
 if "temp_design_queue" not in st.session_state:
     st.session_state.temp_design_queue = []
@@ -106,7 +49,7 @@ if "logged_in" not in st.session_state:
     st.session_state.role = ""
 
 def load_designs_from_sheet():
-    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+    sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7Ulwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy_mbkyYlphDHxvsD2nKFVw/pub?output=csv"
     try:
         df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
@@ -114,7 +57,7 @@ def load_designs_from_sheet():
         if designs:
             return designs
     except Exception as e:
-        st.error(f"Error loading Google Sheet: {e}")
+        pass
     
     return [
         "1000 L 12X18 KK",
@@ -140,9 +83,9 @@ if not st.session_state.logged_in:
             if submit:
                 matched_user = None
                 user_role = ""
-                current_users = fetch_from_github(USERS_FILE) or st.session_state.users
+                current_users = load_local_data(USERS_FILE) or st.session_state.users
                 for uname, udata in current_users.items():
-                    if uname.strip().lower() == user_id.strip().lower() or str(udata.get("mobile")) == str(user_id).strip():
+                    if uname.strip().lower() == user_id.strip().lower() == uname.strip().lower() or str(udata.get("mobile")) == str(user_id).strip():
                         if str(udata.get("password")) == str(password):
                             matched_user = uname
                             user_role = udata.get("role", "salesman")
@@ -165,7 +108,7 @@ if not st.session_state.logged_in:
             reg_submit = st.form_submit_button("Register")
             
             if reg_submit:
-                current_users = fetch_from_github(USERS_FILE) or st.session_state.users
+                current_users = load_local_data(USERS_FILE) or st.session_state.users
                 if new_user in current_users:
                     st.error("User ID already exists!")
                 elif not new_user or not new_mobile or not new_pass:
@@ -177,7 +120,7 @@ if not st.session_state.logged_in:
                         "role": role_choice
                     }
                     st.session_state.users = current_users
-                    save_to_github(USERS_FILE, current_users)
+                    save_local_data(USERS_FILE, current_users)
                     st.success("Registration Successful! Please switch to Login tab.")
 
     elif auth_mode == "Forgot Password":
@@ -187,7 +130,7 @@ if not st.session_state.logged_in:
             f_submit = st.form_submit_button("Update Password")
             
             if f_submit:
-                current_users = fetch_from_github(USERS_FILE) or st.session_state.users
+                current_users = load_local_data(USERS_FILE) or st.session_state.users
                 found = False
                 for uname, udata in current_users.items():
                     if str(udata.get("mobile")) == str(f_mobile).strip():
@@ -195,7 +138,7 @@ if not st.session_state.logged_in:
                         found = True
                 if found:
                     st.session_state.users = current_users
-                    save_to_github(USERS_FILE, current_users)
+                    save_local_data(USERS_FILE, current_users)
                     st.success("Password updated successfully!")
                 else:
                     st.error("Mobile number not found.")
@@ -203,22 +146,32 @@ if not st.session_state.logged_in:
 else:
     st.sidebar.title(f"👤 {st.session_state.username} ({st.session_state.role.capitalize()})")
     
-    if st.session_state.role == "admin":
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("🔄 Restore Displays Data")
-        uploaded_json_backup = st.sidebar.file_uploader("Upload Displays JSON (.json)", type=["json"])
-        if uploaded_json_backup is not None:
-            try:
-                raw_data = json.load(uploaded_json_backup)
-                if isinstance(raw_data, list):
-                    st.session_state.displays = raw_data
-                    save_to_github(DISPLAYS_FILE, raw_data)
-                    st.sidebar.success("Displays restored & synced to cloud successfully!")
-                    st.rerun()
-                else:
-                    st.sidebar.error("Invalid format.")
-            except Exception as e:
-                st.sidebar.error("Error reading JSON file.")
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📥 Download Backup File")
+    current_data_for_download = load_local_data(DISPLAYS_FILE) or st.session_state.displays or []
+    json_string = json.dumps(current_data_for_download, indent=4)
+    st.sidebar.download_button(
+        label="💾 Download Today's Backup",
+        data=json_string,
+        file_name="displays_backup_today.json",
+        mime="application/json"
+    )
+    
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🔄 Restore / Upload Backup")
+    uploaded_json_backup = st.sidebar.file_uploader("Upload Backup JSON (.json)", type=["json"])
+    if uploaded_json_backup is not None:
+        try:
+            raw_data = json.load(uploaded_json_backup)
+            if isinstance(raw_data, list):
+                st.session_state.displays = raw_data
+                save_local_data(DISPLAYS_FILE, raw_data)
+                st.sidebar.success("Displays restored successfully!")
+                st.rerun()
+            else:
+                st.sidebar.error("Invalid format.")
+        except Exception as e:
+            st.sidebar.error("Error reading JSON file.")
     
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
@@ -267,9 +220,7 @@ else:
                 st.write(f"{idx + 1}. {item}")
             
             if st.button("💾 Save All Queued Tiles to Board"):
-                current_displays = fetch_from_github(DISPLAYS_FILE)
-                if current_displays is None:
-                    current_displays = st.session_state.displays or []
+                current_displays = load_local_data(DISPLAYS_FILE) or st.session_state.displays or []
                     
                 added_count = 0
                 for design in st.session_state.temp_design_queue:
@@ -291,17 +242,15 @@ else:
                         added_count += 1
                 
                 st.session_state.displays = current_displays
-                save_to_github(DISPLAYS_FILE, current_displays)
+                save_local_data(DISPLAYS_FILE, current_displays)
                 st.session_state.temp_design_queue = []
-                st.success(f"{added_count} tile(s) successfully saved and synced to cloud!")
+                st.success(f"{added_count} tile(s) successfully saved!")
                 st.rerun()
 
     with tab2:
         st.header(f"Active Displays - {location}")
         
-        current_displays = fetch_from_github(DISPLAYS_FILE)
-        if current_displays is None:
-            current_displays = st.session_state.displays or []
+        current_displays = load_local_data(DISPLAYS_FILE) or st.session_state.displays or []
             
         search_query = st.text_input("🔍 Search (e.g. S1, B1, S1B1 or Design Name)").strip().lower()
         
@@ -352,7 +301,7 @@ else:
                 col2.write(f"**Board No:** {item.get('board')}")
                 col3.write(f"**Design:** {item.get('design')}")
                 if col4.button("Mark Unavailable", key=f"unavail_{location}_{item.get('stand')}_{item.get('board')}_{i}_{item.get('design')}"):
-                    fresh_data = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays or []
+                    fresh_data = load_local_data(DISPLAYS_FILE) or st.session_state.displays or []
                     for d in fresh_data:
                         if (str(d.get('location', '')).strip().lower() == location.strip().lower() and 
                             int(d.get('stand', 0)) == int(item.get('stand', 0)) and 
@@ -360,13 +309,13 @@ else:
                             str(d.get('design', '')).strip() == str(item.get('design', '')).strip()):
                             d['status'] = 'Unavailable'
                     st.session_state.displays = fresh_data
-                    save_to_github(DISPLAYS_FILE, fresh_data)
-                    st.success("Marked as Unavailable & Synced!")
+                    save_local_data(DISPLAYS_FILE, fresh_data)
+                    st.success("Marked as Unavailable!")
                     st.rerun()
 
     with tab3:
         st.header(f"Unavailable Section & Clear Boards - {location}")
-        fresh_data = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays or []
+        fresh_data = load_local_data(DISPLAYS_FILE) or st.session_state.displays or []
         unavail_displays = []
         if fresh_data and isinstance(fresh_data, list):
             unavail_displays = [d for d in fresh_data if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', '')).strip().capitalize() == 'Unavailable']
@@ -392,7 +341,7 @@ else:
                 col2.write(f"**Board No:** {item.get('board')}")
                 col3.write(f"**Design:** {item.get('design')}")
                 if col4.button("Remove / Clear Tile", key=f"clear_{location}_{item.get('stand')}_{item.get('board')}_{i}_{item.get('design')}"):
-                    latest_data = fetch_from_github(DISPLAYS_FILE) or st.session_state.displays or []
+                    latest_data = load_local_data(DISPLAYS_FILE) or st.session_state.displays or []
                     latest_data = [
                         d for d in latest_data 
                         if not (str(d.get('location', '')).strip().lower() == location.strip().lower() and 
@@ -401,8 +350,8 @@ else:
                                 str(d.get('design', '')).strip() == str(item.get('design', '')).strip())
                     ]
                     st.session_state.displays = latest_data
-                    save_to_github(DISPLAYS_FILE, latest_data)
-                    st.success("Item cleared & synced successfully!")
+                    save_local_data(DISPLAYS_FILE, latest_data)
+                    st.success("Item cleared successfully!")
                     st.rerun()
 
     if st.session_state.role == "admin":
@@ -417,7 +366,7 @@ else:
                 add_btn = st.form_submit_button("Create User Account")
                 
                 if add_btn:
-                    current_users = fetch_from_github(USERS_FILE) or st.session_state.users
+                    current_users = load_local_data(USERS_FILE) or st.session_state.users
                     if not new_staff_id or not new_staff_mobile or not new_staff_pass:
                         st.warning("Please fill all fields.")
                     elif new_staff_id in current_users:
@@ -429,13 +378,13 @@ else:
                             "role": staff_role
                         }
                         st.session_state.users = current_users
-                        save_to_github(USERS_FILE, current_users)
-                        st.success(f"Staff account '{new_staff_id}' successfully created & synced!")
+                        save_local_data(USERS_FILE, current_users)
+                        st.success(f"Staff account '{new_staff_id}' successfully created!")
                         st.rerun()
             
             st.markdown("---")
             st.subheader("📋 Existing Users List")
-            current_users = fetch_from_github(USERS_FILE) or st.session_state.users
+            current_users = load_local_data(USERS_FILE) or st.session_state.users
             for uname, udata in list(current_users.items()):
                 col1, col2, col3 = st.columns([3, 3, 2])
                 col1.write(f"**User ID:** {uname}")
@@ -446,8 +395,8 @@ else:
                         if uname in current_users:
                             del current_users[uname]
                             st.session_state.users = current_users
-                            save_to_github(USERS_FILE, current_users)
-                            st.success(f"User '{uname}' successfully deleted & synced!")
+                            save_local_data(USERS_FILE, current_users)
+                            st.success(f"User '{uname}' successfully deleted!")
                             st.rerun()
                 else:
                     col3.write("🔒 Protected")
