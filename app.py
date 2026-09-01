@@ -114,7 +114,7 @@ def load_designs_from_sheet():
         if designs:
             return designs
     except Exception as e:
-        pass
+        st.error(f"Error loading Google Sheet: {e}")
     
     return [
         "1000 L 12X18 KK",
