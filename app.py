@@ -214,7 +214,6 @@ else:
 
     st.sidebar.title(f"👤 {st.session_state.username} ({st.session_state.role.capitalize()})")
     
-    # Admin-only backup & restore controls
     if st.session_state.role == "admin":
         st.sidebar.markdown("---")
         st.sidebar.subheader("📥 Download Backup File")
@@ -292,7 +291,7 @@ else:
             
             if st.button("💾 Save All Queued Tiles to Board"):
                 current_displays = get_current_displays()
-                    
+                
                 added_count = 0
                 for design in st.session_state.temp_design_queue:
                     exists = any(
