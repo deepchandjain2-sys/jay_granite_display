@@ -28,7 +28,7 @@ def fetch_json_from_github(filename):
     url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             content_encoded = response.json().get("content", "")
             decoded_bytes = base64.b64decode(content_encoded)
@@ -49,7 +49,7 @@ def save_json_to_github(filename, data):
     
     sha = None
     try:
-        res = requests.get(url, headers=headers)
+        res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             sha = res.json().get("sha")
     except:
@@ -67,7 +67,7 @@ def save_json_to_github(filename, data):
         payload["sha"] = sha
         
     try:
-        requests.put(url, headers=headers, json=payload)
+        requests.put(url, headers=headers, json=payload, timeout=5)
     except:
         pass
 
@@ -83,7 +83,7 @@ def fetch_excel_from_github():
     url = f"https://api.github.com/repos/{REPO_NAME}/contents/{EXCEL_FILE}"
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             content_encoded = response.json().get("content", "")
             decoded_bytes = base64.b64decode(content_encoded)
@@ -100,41 +100,41 @@ def fetch_excel_from_github():
     return []
 
 def save_excel_to_github(data_list):
-    df = pd.DataFrame(data_list)
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Displays')
-    excel_bytes = output.getvalue()
-    
-    with open(EXCEL_FILE, "wb") as f:
-        f.write(excel_bytes)
-        
-    if not GITHUB_TOKEN:
-        return
-        
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{EXCEL_FILE}"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-    
-    sha = None
     try:
-        res = requests.get(url, headers=headers)
-        if res.status_code == 200:
-            sha = res.json().get("sha")
-    except:
-        pass
+        df = pd.DataFrame(data_list)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Displays')
+        excel_bytes = output.getvalue()
         
-    encoded_content = base64.b64encode(excel_bytes).decode('utf-8')
-    
-    payload = {
-        "message": "Auto-update displays_data.xlsx from Streamlit App",
-        "content": encoded_content,
-        "branch": "main"
-    }
-    if sha:
-        payload["sha"] = sha
+        with open(EXCEL_FILE, "wb") as f:
+            f.write(excel_bytes)
+            
+        if not GITHUB_TOKEN:
+            return
+            
+        url = f"https://api.github.com/repos/{REPO_NAME}/contents/{EXCEL_FILE}"
+        headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
         
-    try:
-        requests.put(url, headers=headers, json=payload)
+        sha = None
+        try:
+            res = requests.get(url, headers=headers, timeout=5)
+            if res.status_code == 200:
+                sha = res.json().get("sha")
+        except:
+            pass
+            
+        encoded_content = base64.b64encode(excel_bytes).decode('utf-8')
+        
+        payload = {
+            "message": "Auto-update displays_data.xlsx from Streamlit App",
+            "content": encoded_content,
+            "branch": "main"
+        }
+        if sha:
+            payload["sha"] = sha
+            
+        requests.put(url, headers=headers, json=payload, timeout=5)
     except:
         pass
 
@@ -164,8 +164,8 @@ def get_current_displays():
         return cloud_data
     return []
 
-if "displays" not in st.session_state or not st.session_state.displays:
-    st.session_state.displays = get_current_displays()
+if "displays" not in st.session_state:
+    st.session_state.displays = []
 
 if "temp_design_queue" not in st.session_state:
     st.session_state.temp_design_queue = []
@@ -272,7 +272,8 @@ if not st.session_state.logged_in:
                     st.error("Mobile number not found.")
 
 else:
-    st.session_state.displays = get_current_displays()
+    if not st.session_state.displays:
+        st.session_state.displays = get_current_displays()
 
     st.sidebar.title(f"👤 {st.session_state.username} ({st.session_state.role.capitalize()})")
     
