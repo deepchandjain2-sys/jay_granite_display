@@ -240,14 +240,21 @@ else:
     if st.session_state.role == "admin":
         with tab4:
             st.header("⚙️ Manage Users")
-            with st.form("add_user_form"):
+            with st.form("add_user_form", clear_on_submit=True):
                 new_id = st.text_input("New User ID")
                 new_mob = st.text_input("Mobile Number")
                 new_pwd = st.text_input("Password", type="password")
                 r_choice = st.selectbox("Role", ["salesman", "admin"])
-                if st.form_submit_button("Create User"):
-                    if new_id and new_mob and new_pwd:
-                        st.session_state.users[new_id] = {"password": new_pwd, "mobile": new_mob, "role": r_choice}
+                submitted = st.form_submit_button("Create User")
+                
+                if submitted:
+                    if new_id.strip() and new_mob.strip() and new_pwd.strip():
+                        st.session_state.users[new_id.strip()] = {
+                            "password": new_pwd, 
+                            "mobile": new_mob.strip(), 
+                            "role": r_choice
+                        }
                         save_local_data(USERS_FILE, st.session_state.users)
-                        st.success("User created!")
-                        st.rerun()
+                        st.success(f"User '{new_id}' successfully created!")
+                    else:
+                        st.warning("Please fill all fields.")
