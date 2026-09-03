@@ -516,12 +516,5 @@
         "board": 28,
         "design": "5152 D 12X18 KK",
         "status": "Available"
-    },
-    {
-        "location": "Hiriyur",
-        "stand": 5,
-        "board": 1,
-        "design": "ZION WHITE GLIT 2X4 ITALICA",
-        "status": "Unavailable"
     }
 ]
