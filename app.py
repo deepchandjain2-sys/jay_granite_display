@@ -519,7 +519,7 @@ else:
             st.markdown("---")
             st.subheader("📋 Existing Users List")
             current_users = fetch_json_from_github(USERS_FILE) or st.session_state.users
-                    for uname, udata in list(current_users.items()):
+            for uname, udata in list(current_users.items()):
                 col1, col2, col3 = st.columns([3, 3, 2])
                 col1.write(f"**User ID:** {uname}")
                 col2.write(f"**Role:** {udata.get('role', 'salesman').capitalize()} (Mobile: {udata.get('mobile', '')})")
