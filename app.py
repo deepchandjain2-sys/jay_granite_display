@@ -288,7 +288,9 @@ else:
                     st.session_state.displays = fresh_data
                     save_json_to_github(DISPLAYS_FILE, fresh_data)
                     st.success("Marked as Unavailable & synced to GitHub!")
-                    st.rerun()   with tab3:
+                    st.rerun()
+
+    with tab3:
         st.header(f"Unavailable Section - {location}")
         fresh_data = fetch_json_from_github(DISPLAYS_FILE, [])
         unavail_displays = [d for d in fresh_data if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', '')).strip().capitalize() == 'Unavailable']
