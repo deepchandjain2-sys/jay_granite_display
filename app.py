@@ -262,7 +262,7 @@ else:
                 st.success(f"{added_count} tile(s) saved & synced to GitHub successfully!")
                 st.rerun()
 
- with tab2:
+    with tab2:
         st.header(f"Active Displays - {location}")
         current_displays = fetch_json_from_github(DISPLAYS_FILE, [])
         loc_displays = [d for d in current_displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', 'Available')).strip().capitalize() == 'Available']
