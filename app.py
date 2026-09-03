@@ -265,8 +265,10 @@ else:
     with tab2:
         st.header(f"Active Displays - {location}")
         current_displays = fetch_json_from_github(DISPLAYS_FILE, [])
-        loc_displays = [d for d in current_displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', 'Available')).strip().capitalize() == 'Available']
+      loc_displays = [d for d in current_displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', 'Available')).strip().capitalize() == 'Available']
         
+        # Yeh line jod dein taaki Stand aur Board order mein dikhein:
+        loc_displays = sorted(loc_displays, key=lambda x: (int(x.get('stand', 0)), int(x.get('board', 0))))  
         if not loc_displays:
             st.info("No active displays found.")
         else:
