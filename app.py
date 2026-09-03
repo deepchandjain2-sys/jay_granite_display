@@ -43,6 +43,7 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.role = ""
 
+@st.cache_data(ttl=3600)
 def load_designs_from_sheet():
     sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
     try:
@@ -61,7 +62,6 @@ def load_designs_from_sheet():
         "VARMORA 60X120",
         "VARMORA 80X160"
     ]
-
 design_list = load_designs_from_sheet()
 
 if not st.session_state.logged_in:
