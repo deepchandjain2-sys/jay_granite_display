@@ -2,77 +2,25 @@ import streamlit as st
 import pandas as pd
 import os
 import json
-import base64
-import requests
 
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
-
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-REPO_NAME = st.secrets.get("REPO_NAME", "deepchandjain2-sys/jay_granite_display")
 
 USERS_FILE = "users_data.json"
 DISPLAYS_FILE = "displays_data.json"
 
-def fetch_json_from_github(filename, default_val):
-    if not GITHUB_TOKEN:
-        if os.path.exists(filename):
-            try:
-                with open(filename, "r") as f:
-                    return json.load(f)
-            except:
-                return default_val
-        return default_val
-    
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-    try:
-        response = requests.get(url, headers=headers, timeout=3)
-        if response.status_code == 200:
-            content_encoded = response.json().get("content", "")
-            decoded_bytes = base64.b64decode(content_encoded)
-            return json.loads(decoded_bytes.decode('utf-8'))
-    except:
-        pass
-    
+def load_local_data(filename, default_val):
     if os.path.exists(filename):
         try:
             with open(filename, "r") as f:
                 return json.load(f)
         except:
-            pass
+            return default_val
     return default_val
 
-def save_json_to_github(filename, data):
-    with open(filename, "w") as f:
-        json.dump(data, f, indent=4)
-        
-    if not GITHUB_TOKEN:
-        return
-        
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-    
-    sha = None
+def save_local_data(filename, data):
     try:
-        res = requests.get(url, headers=headers, timeout=3)
-        if res.status_code == 200:
-            sha = res.json().get("sha")
-    except:
-        pass
-        
-    json_str = json.dumps(data, indent=4)
-    encoded_content = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
-    
-    payload = {
-        "message": f"Auto-update {filename} from Streamlit App",
-        "content": encoded_content,
-        "branch": "main"
-    }
-    if sha:
-        payload["sha"] = sha
-        
-    try:
-        requests.put(url, headers=headers, json=payload, timeout=3)
+        with open(filename, "w") as f:
+            json.dump(data, f, indent=4)
     except:
         pass
 
@@ -82,10 +30,10 @@ default_users = {
 }
 
 if "users" not in st.session_state:
-    st.session_state.users = fetch_json_from_github(USERS_FILE, default_users)
+    st.session_state.users = load_local_data(USERS_FILE, default_users)
 
 if "displays" not in st.session_state:
-    st.session_state.displays = fetch_json_from_github(DISPLAYS_FILE, [])
+    st.session_state.displays = load_local_data(DISPLAYS_FILE, [])
 
 if "temp_design_queue" not in st.session_state:
     st.session_state.temp_design_queue = []
@@ -161,7 +109,7 @@ if not st.session_state.logged_in:
                     st.warning("Please fill all fields.")
                 else:
                     st.session_state.users[new_user] = {"password": new_pass, "mobile": new_mobile, "role": role_choice}
-                    save_json_to_github(USERS_FILE, st.session_state.users)
+                    save_local_data(USERS_FILE, st.session_state.users)
                     st.success("Registration Successful! Please switch to Login tab.")
 
     elif auth_mode == "Forgot Password":
@@ -177,7 +125,7 @@ if not st.session_state.logged_in:
                         udata["password"] = f_new_pass
                         found = True
                 if found:
-                    save_json_to_github(USERS_FILE, st.session_state.users)
+                    save_local_data(USERS_FILE, st.session_state.users)
                     st.success("Password updated successfully!")
                 else:
                     st.error("Mobile number not found.")
@@ -249,9 +197,9 @@ else:
                             'status': 'Available'
                         })
                         added_count += 1
-                save_json_to_github(DISPLAYS_FILE, st.session_state.displays)
+                save_local_data(DISPLAYS_FILE, st.session_state.displays)
                 st.session_state.temp_design_queue = []
-                st.success(f"{added_count} tile(s) saved & synced to GitHub!")
+                st.success(f"{added_count} tile(s) saved successfully!")
                 st.rerun()
 
     with tab2:
@@ -270,7 +218,7 @@ else:
                     for d in st.session_state.displays:
                         if d.get('location') == location and d.get('stand') == item.get('stand') and d.get('board') == item.get('board') and d.get('design') == item.get('design'):
                             d['status'] = 'Unavailable'
-                    save_json_to_github(DISPLAYS_FILE, st.session_state.displays)
+                    save_local_data(DISPLAYS_FILE, st.session_state.displays)
                     st.rerun()
 
     with tab3:
@@ -286,7 +234,7 @@ else:
                 col3.write(f"**Design:** {item.get('design')}")
                 if col4.button("Clear Tile", key=f"clear_{i}_{item.get('stand')}_{item.get('board')}"):
                     st.session_state.displays = [d for d in st.session_state.displays if not (d.get('location') == location and d.get('stand') == item.get('stand') and d.get('board') == item.get('board') and d.get('design') == item.get('design'))]
-                    save_json_to_github(DISPLAYS_FILE, st.session_state.displays)
+                    save_local_data(DISPLAYS_FILE, st.session_state.displays)
                     st.rerun()
 
     if st.session_state.role == "admin":
@@ -306,7 +254,7 @@ else:
                             "mobile": new_mob.strip(), 
                             "role": r_choice
                         }
-                        save_json_to_github(USERS_FILE, st.session_state.users)
-                        st.success(f"User '{new_id}' successfully created & saved to GitHub!")
+                        save_local_data(USERS_FILE, st.session_state.users)
+                        st.success(f"User '{new_id}' successfully created!")
                     else:
                         st.warning("Please fill all fields.")
