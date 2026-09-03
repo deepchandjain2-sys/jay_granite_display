@@ -5,6 +5,7 @@ import json
 import re
 import base64
 import requests
+from io import BytesIO
 
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
 
@@ -12,9 +13,9 @@ GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO_NAME = st.secrets.get("REPO_NAME", "deepchandjain2-sys/jay_granite_display")
 
 USERS_FILE = "users_data.json"
-DISPLAYS_FILE = "displays_data.json"
+EXCEL_FILE = "displays_data.xlsx"
 
-def fetch_from_github(filename):
+def fetch_json_from_github(filename):
     if not GITHUB_TOKEN:
         if os.path.exists(filename):
             try:
@@ -36,7 +37,7 @@ def fetch_from_github(filename):
         pass
     return None
 
-def save_to_github(filename, data):
+def save_json_to_github(filename, data):
     with open(filename, "w") as f:
         json.dump(data, f, indent=4)
         
@@ -70,12 +71,79 @@ def save_to_github(filename, data):
     except:
         pass
 
+def fetch_excel_from_github():
+    if not GITHUB_TOKEN:
+        if os.path.exists(EXCEL_FILE):
+            try:
+                return pd.read_excel(EXCEL_FILE).to_dict('records')
+            except:
+                return []
+        return []
+    
+    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{EXCEL_FILE}"
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            content_encoded = response.json().get("content", "")
+            decoded_bytes = base64.b64decode(content_encoded)
+            df = pd.read_excel(BytesIO(decoded_bytes))
+            return df.to_dict('records')
+    except:
+        pass
+    
+    if os.path.exists(EXCEL_FILE):
+        try:
+            return pd.read_excel(EXCEL_FILE).to_dict('records')
+        except:
+            pass
+    return []
+
+def save_excel_to_github(data_list):
+    df = pd.DataFrame(data_list)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Displays')
+    excel_bytes = output.getvalue()
+    
+    with open(EXCEL_FILE, "wb") as f:
+        f.write(excel_bytes)
+        
+    if not GITHUB_TOKEN:
+        return
+        
+    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{EXCEL_FILE}"
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
+    
+    sha = None
+    try:
+        res = requests.get(url, headers=headers)
+        if res.status_code == 200:
+            sha = res.json().get("sha")
+    except:
+        pass
+        
+    encoded_content = base64.b64encode(excel_bytes).decode('utf-8')
+    
+    payload = {
+        "message": "Auto-update displays_data.xlsx from Streamlit App",
+        "content": encoded_content,
+        "branch": "main"
+    }
+    if sha:
+        payload["sha"] = sha
+        
+    try:
+        requests.put(url, headers=headers, json=payload)
+    except:
+        pass
+
 default_users = {
     "admin": {"password": "123", "mobile": "9999999999", "role": "admin"},
     "DEEPCHAND JAIN": {"password": "deep1965", "mobile": "9888888888", "role": "admin"}
 }
 
-saved_users = fetch_from_github(USERS_FILE)
+saved_users = fetch_json_from_github(USERS_FILE)
 if not saved_users or not isinstance(saved_users, dict):
     if os.path.exists(USERS_FILE):
         try:
@@ -88,18 +156,12 @@ if saved_users and isinstance(saved_users, dict):
     st.session_state.users = saved_users
 else:
     st.session_state.users = default_users
-    save_to_github(USERS_FILE, default_users)
+    save_json_to_github(USERS_FILE, default_users)
 
 def get_current_displays():
-    cloud_data = fetch_from_github(DISPLAYS_FILE)
+    cloud_data = fetch_excel_from_github()
     if cloud_data is not None and isinstance(cloud_data, list):
         return cloud_data
-    if os.path.exists(DISPLAYS_FILE):
-        try:
-            with open(DISPLAYS_FILE, "r") as f:
-                return json.load(f)
-        except:
-            pass
     return []
 
 if "displays" not in st.session_state or not st.session_state.displays:
@@ -148,7 +210,7 @@ if not st.session_state.logged_in:
             if submit:
                 matched_user = None
                 user_role = ""
-                current_users = fetch_from_github(USERS_FILE) or st.session_state.users
+                current_users = fetch_json_from_github(USERS_FILE) or st.session_state.users
                 for uname, udata in current_users.items():
                     if uname.strip().lower() == user_id.strip().lower() or str(udata.get("mobile")) == str(user_id).strip():
                         if str(udata.get("password")) == str(password):
@@ -174,7 +236,7 @@ if not st.session_state.logged_in:
             reg_submit = st.form_submit_button("Register")
             
             if reg_submit:
-                current_users = fetch_from_github(USERS_FILE) or st.session_state.users
+                current_users = fetch_json_from_github(USERS_FILE) or st.session_state.users
                 if new_user in current_users:
                     st.error("User ID already exists!")
                 elif not new_user or not new_mobile or not new_pass:
@@ -186,7 +248,7 @@ if not st.session_state.logged_in:
                         "role": role_choice
                     }
                     st.session_state.users = current_users
-                    save_to_github(USERS_FILE, current_users)
+                    save_json_to_github(USERS_FILE, current_users)
                     st.success("Registration Successful! Please switch to Login tab.")
 
     elif auth_mode == "Forgot Password":
@@ -196,7 +258,7 @@ if not st.session_state.logged_in:
             f_submit = st.form_submit_button("Update Password")
             
             if f_submit:
-                current_users = fetch_from_github(USERS_FILE) or st.session_state.users
+                current_users = fetch_json_from_github(USERS_FILE) or st.session_state.users
                 found = False
                 for uname, udata in current_users.items():
                     if str(udata.get("mobile")) == str(f_mobile).strip():
@@ -204,7 +266,7 @@ if not st.session_state.logged_in:
                         found = True
                 if found:
                     st.session_state.users = current_users
-                    save_to_github(USERS_FILE, current_users)
+                    save_json_to_github(USERS_FILE, current_users)
                     st.success("Password updated successfully!")
                 else:
                     st.error("Mobile number not found.")
@@ -216,31 +278,33 @@ else:
     
     if st.session_state.role == "admin":
         st.sidebar.markdown("---")
-        st.sidebar.subheader("📥 Download Backup File")
+        st.sidebar.subheader("📥 Download Excel Backup")
         current_data_for_download = get_current_displays()
-        json_string = json.dumps(current_data_for_download, indent=4)
+        df_download = pd.DataFrame(current_data_for_download)
+        excel_buffer = BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            df_download.to_excel(writer, index=False, sheet_name='Displays')
+        
         st.sidebar.download_button(
-            label="💾 Download Today's Backup",
-            data=json_string,
-            file_name="displays_backup_today.json",
-            mime="application/json"
+            label="💾 Download Today's Excel",
+            data=excel_buffer.getvalue(),
+            file_name="displays_data.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         
         st.sidebar.markdown("---")
-        st.sidebar.subheader("🔄 Restore / Upload Backup")
-        uploaded_json_backup = st.sidebar.file_uploader("Upload Backup JSON (.json)", type=["json"])
-        if uploaded_json_backup is not None:
+        st.sidebar.subheader("🔄 Restore / Upload Excel")
+        uploaded_excel_backup = st.sidebar.file_uploader("Upload Backup Excel (.xlsx)", type=["xlsx"])
+        if uploaded_excel_backup is not None:
             try:
-                raw_data = json.load(uploaded_json_backup)
-                if isinstance(raw_data, list):
-                    st.session_state.displays = raw_data
-                    save_to_github(DISPLAYS_FILE, raw_data)
-                    st.sidebar.success("Displays restored & synced to cloud successfully!")
-                    st.rerun()
-                else:
-                    st.sidebar.error("Invalid format.")
+                df_uploaded = pd.read_excel(uploaded_excel_backup)
+                restored_records = df_uploaded.to_dict('records')
+                st.session_state.displays = restored_records
+                save_excel_to_github(restored_records)
+                st.sidebar.success("Excel restored & synced to cloud successfully!")
+                st.rerun()
             except Exception as e:
-                st.sidebar.error("Error reading JSON file.")
+                st.sidebar.error("Error reading Excel file.")
     
     st.sidebar.markdown("---")
     if st.sidebar.button("Logout"):
@@ -312,9 +376,9 @@ else:
                         added_count += 1
                 
                 st.session_state.displays = current_displays
-                save_to_github(DISPLAYS_FILE, current_displays)
+                save_excel_to_github(current_displays)
                 st.session_state.temp_design_queue = []
-                st.success(f"{added_count} tile(s) successfully saved and synced to cloud!")
+                st.success(f"{added_count} tile(s) successfully saved & synced to Excel cloud!")
                 st.rerun()
 
     with tab2:
@@ -379,8 +443,8 @@ else:
                             str(d.get('design', '')).strip() == str(item.get('design', '')).strip()):
                             d['status'] = 'Unavailable'
                     st.session_state.displays = fresh_data
-                    save_to_github(DISPLAYS_FILE, fresh_data)
-                    st.success("Marked as Unavailable & Synced!")
+                    save_excel_to_github(fresh_data)
+                    st.success("Marked as Unavailable & Synced to Excel!")
                     st.rerun()
 
     with tab3:
@@ -420,8 +484,8 @@ else:
                                 str(d.get('design', '')).strip() == str(item.get('design', '')).strip())
                     ]
                     st.session_state.displays = latest_data
-                    save_to_github(DISPLAYS_FILE, latest_data)
-                    st.success("Item cleared & synced successfully!")
+                    save_excel_to_github(latest_data)
+                    st.success("Item cleared & synced to Excel successfully!")
                     st.rerun()
 
     if st.session_state.role == "admin":
@@ -436,7 +500,7 @@ else:
                 add_btn = st.form_submit_button("Create User Account")
                 
                 if add_btn:
-                    current_users = fetch_from_github(USERS_FILE) or st.session_state.users
+                    current_users = fetch_json_from_github(USERS_FILE) or st.session_state.users
                     if not new_staff_id or not new_staff_mobile or not new_staff_pass:
                         st.warning("Please fill all fields.")
                     elif new_staff_id in current_users:
@@ -448,14 +512,14 @@ else:
                             "role": staff_role
                         }
                         st.session_state.users = current_users
-                        save_to_github(USERS_FILE, current_users)
+                        save_json_to_github(USERS_FILE, current_users)
                         st.success(f"Staff account '{new_staff_id}' successfully created & synced!")
                         st.rerun()
             
             st.markdown("---")
             st.subheader("📋 Existing Users List")
-            current_users = fetch_from_github(USERS_FILE) or st.session_state.users
-            for uname, udata in list(current_users.items()):
+            current_users = fetch_json_from_github(USERS_FILE) or st.session_state.users
+                    for uname, udata in list(current_users.items()):
                 col1, col2, col3 = st.columns([3, 3, 2])
                 col1.write(f"**User ID:** {uname}")
                 col2.write(f"**Role:** {udata.get('role', 'salesman').capitalize()} (Mobile: {udata.get('mobile', '')})")
@@ -465,7 +529,7 @@ else:
                         if uname in current_users:
                             del current_users[uname]
                             st.session_state.users = current_users
-                            save_to_github(USERS_FILE, current_users)
+                            save_json_to_github(USERS_FILE, current_users)
                             st.success(f"User '{uname}' successfully deleted & synced!")
                             st.rerun()
                 else:
