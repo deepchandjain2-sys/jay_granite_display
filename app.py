@@ -51,9 +51,8 @@ def load_designs_from_sheet():
         designs = df[column_name].dropna().astype(str).tolist()
         if designs:
             return designs
-    except Exception as e:
+    except:
         pass
-    
     return [
         "1000 L 12X18 KK",
         "0015 16X16 CIBELA",
@@ -61,7 +60,9 @@ def load_designs_from_sheet():
         "1005 CIGAR GLOSSY 1X1 ICON",
         "VARMORA 60X120",
         "VARMORA 80X160"
-    ]design_list = load_designs_from_sheet()
+    ]
+
+design_list = load_designs_from_sheet()
 
 if not st.session_state.logged_in:
     st.title("🪟 Jay Granite Tiles - Portal")
