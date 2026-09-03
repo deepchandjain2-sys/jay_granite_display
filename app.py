@@ -26,7 +26,7 @@ def fetch_json_from_github(filename, default_val):
     url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
     try:
-        response = requests.get(url, headers=headers, timeout=3)
+        response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             content_encoded = response.json().get("content", "")
             decoded_bytes = base64.b64decode(content_encoded)
@@ -54,7 +54,7 @@ def save_json_to_github(filename, data):
     
     sha = None
     try:
-        res = requests.get(url, headers=headers, timeout=3)
+        res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             sha = res.json().get("sha")
     except:
@@ -72,7 +72,7 @@ def save_json_to_github(filename, data):
         payload["sha"] = sha
         
     try:
-        requests.put(url, headers=headers, json=payload, timeout=3)
+        requests.put(url, headers=headers, json=payload, timeout=5)
     except:
         pass
 
@@ -132,7 +132,8 @@ if not st.session_state.logged_in:
             if submit:
                 matched_user = None
                 user_role = ""
-                for uname, udata in st.session_state.users.items():
+                current_users = fetch_json_from_github(USERS_FILE, st.session_state.users)
+                for uname, udata in current_users.items():
                     if uname.strip().lower() == user_id.strip().lower() or str(udata.get("mobile")) == str(user_id).strip():
                         if str(udata.get("password")) == str(password):
                             matched_user = uname
@@ -156,13 +157,15 @@ if not st.session_state.logged_in:
             reg_submit = st.form_submit_button("Register")
             
             if reg_submit:
-                if new_user in st.session_state.users:
+                current_users = fetch_json_from_github(USERS_FILE, st.session_state.users)
+                if new_user in current_users:
                     st.error("User ID already exists!")
                 elif not new_user or not new_mobile or not new_pass:
                     st.warning("Please fill all fields.")
                 else:
-                    st.session_state.users[new_user] = {"password": new_pass, "mobile": new_mobile, "role": role_choice}
-                    save_json_to_github(USERS_FILE, st.session_state.users)
+                    current_users[new_user] = {"password": new_pass, "mobile": new_mobile, "role": role_choice}
+                    st.session_state.users = current_users
+                    save_json_to_github(USERS_FILE, current_users)
                     st.success("Registration Successful! Please switch to Login tab.")
 
     elif auth_mode == "Forgot Password":
@@ -172,13 +175,15 @@ if not st.session_state.logged_in:
             f_submit = st.form_submit_button("Update Password")
             
             if f_submit:
+                current_users = fetch_json_from_github(USERS_FILE, st.session_state.users)
                 found = False
-                for uname, udata in st.session_state.users.items():
+                for uname, udata in current_users.items():
                     if str(udata.get("mobile")) == str(f_mobile).strip():
                         udata["password"] = f_new_pass
                         found = True
                 if found:
-                    save_json_to_github(USERS_FILE, st.session_state.users)
+                    st.session_state.users = current_users
+                    save_json_to_github(USERS_FILE, current_users)
                     st.success("Password updated successfully!")
                 else:
                     st.error("Mobile number not found.")
@@ -232,6 +237,7 @@ else:
                 st.write(f"{idx + 1}. {item}")
             
             if st.button("💾 Save All Queued Tiles"):
+                current_displays = fetch_json_from_github(DISPLAYS_FILE, [])
                 added_count = 0
                 for design in st.session_state.temp_design_queue:
                     exists = any(
@@ -239,10 +245,10 @@ else:
                         int(d.get('stand', 0)) == stand_no and 
                         int(d.get('board', 0)) == board_no and 
                         str(d.get('design', '')).strip() == str(design).strip()
-                        for d in st.session_state.displays
+                        for d in current_displays
                     )
                     if not exists:
-                        st.session_state.displays.append({
+                        current_displays.append({
                             'location': location,
                             'stand': stand_no,
                             'board': board_no,
@@ -250,14 +256,16 @@ else:
                             'status': 'Available'
                         })
                         added_count += 1
-                save_json_to_github(DISPLAYS_FILE, st.session_state.displays)
+                st.session_state.displays = current_displays
+                save_json_to_github(DISPLAYS_FILE, current_displays)
                 st.session_state.temp_design_queue = []
-                st.success(f"{added_count} tile(s) saved & synced to GitHub!")
+                st.success(f"{added_count} tile(s) saved & synced to GitHub successfully!")
                 st.rerun()
 
     with tab2:
         st.header(f"Active Displays - {location}")
-        loc_displays = [d for d in st.session_state.displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', 'Available')).strip().capitalize() == 'Available']
+        current_displays = fetch_json_from_github(DISPLAYS_FILE, [])
+        loc_displays = [d for d in current_displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', 'Available')).strip().capitalize() == 'Available']
         
         if not loc_displays:
             st.info("No active displays found.")
@@ -267,16 +275,23 @@ else:
                 col1.write(f"**Stand:** {item.get('stand')}")
                 col2.write(f"**Board:** {item.get('board')}")
                 col3.write(f"**Design:** {item.get('design')}")
-                if col4.button("Mark Unavailable", key=f"unavail_{i}_{item.get('stand')}_{item.get('board')}"):
-                    for d in st.session_state.displays:
-                        if d.get('location') == location and d.get('stand') == item.get('stand') and d.get('board') == item.get('board') and d.get('design') == item.get('design'):
+                if col4.button("Mark Unavailable", key=f"unavail_{i}_{item.get('stand')}_{item.get('board')}_{item.get('design')}"):
+                    fresh_data = fetch_json_from_github(DISPLAYS_FILE, [])
+                    for d in fresh_data:
+                        if (str(d.get('location', '')).strip().lower() == location.strip().lower() and 
+                            int(d.get('stand', 0)) == int(item.get('stand', 0)) and 
+                            int(d.get('board', 0)) == int(item.get('board', 0)) and 
+                            str(d.get('design', '')).strip() == str(item.get('design', '')).strip()):
                             d['status'] = 'Unavailable'
-                    save_json_to_github(DISPLAYS_FILE, st.session_state.displays)
+                    st.session_state.displays = fresh_data
+                    save_json_to_github(DISPLAYS_FILE, fresh_data)
+                    st.success("Marked as Unavailable & synced to GitHub!")
                     st.rerun()
 
     with tab3:
         st.header(f"Unavailable Section - {location}")
-        unavail_displays = [d for d in st.session_state.displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', '')).strip().capitalize() == 'Unavailable']
+        fresh_data = fetch_json_from_github(DISPLAYS_FILE, [])
+        unavail_displays = [d for d in fresh_data if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', '')).strip().capitalize() == 'Unavailable']
         if not unavail_displays:
             st.info("No unavailable items.")
         else:
@@ -285,9 +300,18 @@ else:
                 col1.write(f"**Stand:** {item.get('stand')}")
                 col2.write(f"**Board:** {item.get('board')}")
                 col3.write(f"**Design:** {item.get('design')}")
-                if col4.button("Clear Tile", key=f"clear_{i}_{item.get('stand')}_{item.get('board')}"):
-                    st.session_state.displays = [d for d in st.session_state.displays if not (d.get('location') == location and d.get('stand') == item.get('stand') and d.get('board') == item.get('board') and d.get('design') == item.get('design'))]
-                    save_json_to_github(DISPLAYS_FILE, st.session_state.displays)
+                if col4.button("Clear Tile", key=f"clear_{i}_{item.get('stand')}_{item.get('board')}_{item.get('design')}"):
+                    latest_data = fetch_json_from_github(DISPLAYS_FILE, [])
+                    latest_data = [
+                        d for d in latest_data 
+                        if not (str(d.get('location', '')).strip().lower() == location.strip().lower() and 
+                                int(d.get('stand', 0)) == int(item.get('stand', 0)) and 
+                                int(d.get('board', 0)) == int(item.get('board', 0)) and 
+                                str(d.get('design', '')).strip() == str(item.get('design', '')).strip())
+                    ]
+                    st.session_state.displays = latest_data
+                    save_json_to_github(DISPLAYS_FILE, latest_data)
+                    st.success("Item cleared & synced to GitHub!")
                     st.rerun()
 
     if st.session_state.role == "admin":
@@ -301,13 +325,18 @@ else:
                 submitted = st.form_submit_button("Create User")
                 
                 if submitted:
+                    current_users = fetch_json_from_github(USERS_FILE, st.session_state.users)
                     if new_id.strip() and new_mob.strip() and new_pwd.strip():
-                        st.session_state.users[new_id.strip()] = {
-                            "password": new_pwd, 
-                            "mobile": new_mob.strip(), 
-                            "role": r_choice
-                        }
-                        save_json_to_github(USERS_FILE, st.session_state.users)
-                        st.success(f"User '{new_id}' successfully created & saved to GitHub!")
+                        if new_id.strip() in current_users:
+                            st.error("User ID already exists!")
+                        else:
+                            current_users[new_id.strip()] = {
+                                "password": new_pwd, 
+                                "mobile": new_mob.strip(), 
+                                "role": r_choice
+                            }
+                            st.session_state.users = current_users
+                            save_json_to_github(USERS_FILE, current_users)
+                            st.success(f"User '{new_id}' successfully created & saved to GitHub!")
                     else:
                         st.warning("Please fill all fields.")
