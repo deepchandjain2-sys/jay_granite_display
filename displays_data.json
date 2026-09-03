@@ -523,12 +523,5 @@
         "board": 1,
         "design": "ZION WHITE GLIT 2X4 ITALICA",
         "status": "Available"
-    },
-    {
-        "location": "Hiriyur",
-        "stand": 5,
-        "board": 1,
-        "design": "ZION WHITE WAVE GILT 2X4 ITALICA",
-        "status": "Unavailable"
     }
 ]
