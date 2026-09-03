@@ -46,20 +46,22 @@ if "logged_in" not in st.session_state:
 def load_designs_from_sheet():
     sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
     try:
-        df = pd.read_csv(sheet_url, timeout=3)
+        df = pd.read_csv(sheet_url)
         column_name = 'ITEM NAME' if 'ITEM NAME' in df.columns else df.columns[0]
         designs = df[column_name].dropna().astype(str).tolist()
         if designs:
             return designs
-    except:
+    except Exception as e:
         pass
+    
     return [
         "1000 L 12X18 KK",
         "0015 16X16 CIBELA",
         "1002 EI 2x1 Torino",
-        "1005 CIGAR GLOSSY 1X1 ICON"
-    ]
-design_list = load_designs_from_sheet()
+        "1005 CIGAR GLOSSY 1X1 ICON",
+        "VARMORA 60X120",
+        "VARMORA 80X160"
+    ]design_list = load_designs_from_sheet()
 
 if not st.session_state.logged_in:
     st.title("🪟 Jay Granite Tiles - Portal")
