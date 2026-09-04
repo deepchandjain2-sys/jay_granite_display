@@ -267,22 +267,15 @@ else:
         current_displays = fetch_json_from_github(DISPLAYS_FILE, [])
         loc_displays = [d for d in current_displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', 'Available')).strip().capitalize() == 'Available']
         
-      # Multi-field Search bar (Stand, Board, Company, Design)
+      # Universal Search across all data fields
         search_query = st.text_input("🔍 Search by Stand, Board, Company, or Item/Design", "").strip().lower()
         if search_query:
             filtered_displays = []
             for d in loc_displays:
-                stand_val = str(d.get('stand', '')).lower()
-                board_val = str(d.get('board', '')).lower()
-                design_val = str(d.get('design', '')).lower()
-                company_val = str(d.get('company', '')).lower() if 'company' in d else ''
-                
-                if (search_query in stand_val or 
-                    search_query in board_val or 
-                    search_query in design_val or 
-                    search_query in company_val):
+                row_text = " ".join([str(v) for v in d.values()]).lower()
+                if search_query in row_text:
                     filtered_displays.append(d)
-            loc_displays = filtered_displays  
+            loc_displays = filtered_displays            loc_displays = filtered_displays  
         loc_displays = sorted(loc_displays, key=lambda x: (int(x.get('stand', 0)), int(x.get('board', 0))))
         
         if not loc_displays:
