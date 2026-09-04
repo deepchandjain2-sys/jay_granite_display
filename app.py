@@ -262,10 +262,15 @@ else:
                 st.success(f"{added_count} tile(s) saved & synced to GitHub successfully!")
                 st.rerun()
 
-    with tab2:
+  with tab2:
         st.header(f"Active Displays - {location}")
         current_displays = fetch_json_from_github(DISPLAYS_FILE, [])
         loc_displays = [d for d in current_displays if str(d.get('location', '')).strip().lower() == location.strip().lower() and str(d.get('status', 'Available')).strip().capitalize() == 'Available']
+        
+        # Search bar for finding items by design name
+        search_query = st.text_input("🔍 Search Item / Design in Active Displays", "").strip().lower()
+        if search_query:
+            loc_displays = [d for d in loc_displays if search_query in str(d.get('design', '')).lower()]
         
         loc_displays = sorted(loc_displays, key=lambda x: (int(x.get('stand', 0)), int(x.get('board', 0))))
         
@@ -289,7 +294,6 @@ else:
                     save_json_to_github(DISPLAYS_FILE, fresh_data)
                     st.success("Marked as Unavailable & synced to GitHub!")
                     st.rerun()
-
     with tab3:
         st.header(f"Unavailable Section - {location}")
         fresh_data = fetch_json_from_github(DISPLAYS_FILE, [])
