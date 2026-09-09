@@ -15,7 +15,7 @@ def fetch_showroom_displays():
     except Exception as e:
         st.error(f"Database error: {e}")
         return []
-        def fetch_users():
+def fetch_users():
     try:
         response = supabase.table("users").select("*").execute()
         return response.data
