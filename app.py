@@ -1,6 +1,14 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
+import streamlit as st
+import pandas as pd
+from supabase import create_client, Client
+
+SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
+SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Page Configuration
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
