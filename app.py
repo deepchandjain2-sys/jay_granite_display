@@ -2,16 +2,12 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 
-SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
-SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
 # Page Configuration
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
 
 # Supabase Connection Setup
-SUPABASE_URL = "sb_publishable_oi8gTy66MV8CTq-DasQHAA_M1Wvgg-g"
+SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
+SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -33,23 +29,9 @@ def fetch_users():
         st.error(f"Users fetch error: {e}")
         return []
 
-# Initialize Session State using Supabase Data
-if "users" not in st.session_state:
-    st.session_state.users = fetch_users()
-
-if "displays" not in st.session_state:
-    st.session_state.displays = fetch_showroom_displays()
-
 # Main App UI & Logic
 st.title("Jay Granite Tiles Display Management")
 
-# Quick check to display fetched data
-if st.button("Refresh Data"):
-    st.session_state.users = fetch_users()
-    st.session_state.displays = fetch_showroom_displays()
-    st.success("Data refreshed successfully from Supabase!")
-
-st.write("### Showroom Displays")
 displays_data = fetch_showroom_displays()
 if displays_data:
     df_displays = pd.DataFrame(displays_data)
