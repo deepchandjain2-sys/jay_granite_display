@@ -103,7 +103,7 @@ elif menu == "Display & Item Entry":
     # Fetch live item master from Google Sheet CSV export link
     def fetch_item_master_from_sheet():
         try:
-            sheet_url = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlZHphemlyd3hheGFibnBwY2hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2ODAyOTgsImV4cCI6MjEwNDI1NjI5OH0.CSCbuwInWJtGpL7w_nMFU6ElGWnXxr67bKeMWuTpMMM"
+            sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
             df_sheet = pd.read_csv(sheet_url)
             items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
             return items
