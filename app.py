@@ -179,33 +179,44 @@ elif menu == "Item Entry":
         st.info("Queue is empty. Add items above to save them together.")
 
 # ----------------- 2. ACTIVE DISPLAYS PAGE -----------------
+# ----------------- 2. ACTIVE DISPLAYS PAGE -----------------
 elif menu == "Active Displays":
     st.title("📋 Current Active Showroom Displays")
     
-    # Search bar for Active Displays table
     active_search = st.text_input("Search Active Displays (by Design, Stand, or Location)").lower()
     
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
         if data:
-            df = pd.DataFrame(data)
+            # Filter based on search query
             if active_search:
-                df = df[df.astype(str).apply(lambda x: x.str.lower().str.contains(active_search)).any(axis=1)]
+                data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
             
-            st.dataframe(df, use_container_width=True)
-            
-            st.markdown("### 🔄 Mark Item as Not Available (Send to Remove Section)")
-            item_ids = [item['id'] for item in data]
-            selected_id = st.selectbox("Select Item ID to mark Not Available", item_ids)
-            if st.button("Move to Not Available / Remove Section"):
-                supabase.table("showroom_displays").update({"status": "Not Available"}).eq("id", selected_id).execute()
-                st.success("Item marked as Not Available and moved to Remove section!")
-                st.rerun()
+            if data:
+                st.markdown("### Active Items List")
+                for item in data:
+                    cols = st.columns([3, 2, 2, 2, 2])
+                    with cols[0]:
+                        st.write(f"**Design:** {item.get('design', '')}")
+                    with cols[1]:
+                        st.write(f"**Stand:** {item.get('stand', '')}")
+                    with cols[2]:
+                        st.write(f"**Board:** {item.get('board', '')}")
+                    with cols[3]:
+                        st.write(f"**Location:** {item.get('location', '')}")
+                    with cols[4]:
+                        if st.button("❌ Not Available", key=f"btn_{item['id']}"):
+                            supabase.table("showroom_displays").update({"status": "Not Available"}).eq("id", item['id']).execute()
+                            st.success(f"Moved to Remove section!")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("No matching displays found.")
         else:
             st.info("No active available displays found in the database.")
     except Exception as e:
-        st.error(f"Error fetching active displays: {e}")# ----------------- 3. OUT OF STOCK / REMOVE SECTION -----------------
+        st.error(f"Error fetching active displays: {e}") OUT OF STOCK / REMOVE SECTION -----------------
 elif menu == "Out of Stock / Remove Section":
     st.title("🗑️ Not Available & Permanent Stand Removal Section")
     
