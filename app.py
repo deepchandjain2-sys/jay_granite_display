@@ -60,6 +60,36 @@ if not st.session_state.logged_in:
 st.sidebar.markdown(f"### 👤 User: {st.session_state.username.upper()}")
 st.sidebar.markdown(f"**Role:** `{st.session_state.role.upper()}`")
 st.sidebar.markdown("---")
+# Temporary Migration Button (App ke andar hi run karne ke liye)
+if st.sidebar.button("🔄 Migrate Old JSON to Supabase"):
+    import urllib.request
+    try:
+        # Apni GitHub wali raw json ka link yahan dalein
+        json_url = "APNA_RAW_GITHUB_LINK_YAHAN_PASTE_KAREIN"
+        with urllib.request.urlopen(json_url) as response:
+            old_data = json.loads(response.read().decode())
+
+        formatted_data = []
+        for item in old_data:
+            raw_stand = str(item.get("stand", "1"))
+            raw_board = str(item.get("board", "1"))
+            
+            stand_str = f"ST-{int(raw_stand):02d}" if raw_stand.isdigit() else raw_stand
+            board_str = f"B-{int(raw_board)}" if raw_board.isdigit() else raw_board
+            
+            formatted_item = {
+                "location": item.get("location", "HIRIYUR (Head Office)"),
+                "stand": stand_str,
+                "board": board_str,
+                "design": item.get("design", ""),
+                "status": item.get("status", "Available")
+            }
+            formatted_data.append(formatted_item)
+
+        supabase.table("showroom_displays").insert(formatted_data).execute()
+        st.sidebar.success("Data successfully migrated to Supabase!")
+    except Exception as e:
+        st.sidebar.error(f"Migration error: {e}")
 
 if st.session_state.role == "admin":
     menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "Out of Stock / Remove Section", "Create Salesman Account"])
