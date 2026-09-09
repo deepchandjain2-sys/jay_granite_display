@@ -9,11 +9,7 @@ st.set_page_config(page_title="Jay Granite Tiles - Management System", layout="w
 SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlZHphemlyd3hheGFibnBwY2hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2ODAyOTgsImV4cCI6MjEwNDI1NjI5OH0.CSCbuwInWJtGpL7w_nMFU6ElGWnXxr67bKeMWuTpMMM"
 
-# Fallback clean key check if needed, using your working key format
-SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
-
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
 # Session State Initialization
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
