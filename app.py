@@ -9,7 +9,7 @@ st.set_page_config(page_title="Jay Granite Tiles - Management System", layout="w
 
 # Supabase Connection Setup
 SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlZHphemlyd3hheGFibnBwY2hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2ODAyOTgsImV4cCI6MjEwNDI1NjI5OH0.CSCbuwInWJtGpL7w_nMFU6ElGWnXxr67bKeMWuTpMMM"
+SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -60,9 +60,9 @@ st.sidebar.markdown(f"**Role:** `{st.session_state.role.upper()}`")
 st.sidebar.markdown("---")
 
 if st.session_state.role == "admin":
-    menu = st.sidebar.radio("Navigation Menu", ["Display & Item Entry", "Out of Stock / Remove Section", "Create Salesman Account"])
+    menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "Out of Stock / Remove Section", "Create Salesman Account"])
 else:
-    menu = st.sidebar.radio("Navigation Menu", ["Display & Item Entry", "Out of Stock / Remove Section"])
+    menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "Out of Stock / Remove Section"])
 
 st.sidebar.markdown("---")
 if st.sidebar.button("🚪 Logout", use_container_width=True):
@@ -96,14 +96,14 @@ if st.session_state.role == "admin" and menu == "Create Salesman Account":
             else:
                 st.warning("Please fill in both username and password fields.")
 
-# ----------------- DISPLAY & ITEM ENTRY SECTION -----------------
-elif menu == "Display & Item Entry":
+# ----------------- 1. ITEM ENTRY SECTION -----------------
+elif menu == "Item Entry":
     st.title("🏢 Showroom Display & Item Master Management")
     
     # Fetch live item master from Google Sheet CSV export link
     def fetch_item_master_from_sheet():
         try:
-            sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+            sheet_url = "https://docs.google.com/spreadsheets/d/1qhlBmCIUDAKfMX/export?format=csv&gid=0"
             df_sheet = pd.read_csv(sheet_url)
             items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
             return items
@@ -134,7 +134,6 @@ elif menu == "Display & Item Entry":
             item_master_designs
         )
         
-        # Default status jab select hoke submit hoga toh "Available" rahega
         status = "Available"
         submit_item = st.form_submit_button("Save Entries to Display")
         
@@ -159,9 +158,9 @@ elif menu == "Display & Item Entry":
             else:
                 st.warning("Please select at least one design from the Item Master.")
 
-    # Current Active Displays Table with "Not Available" Action
-    st.markdown("---")
-    st.subheader("📋 Current Active Showroom Displays (Available)")
+# ----------------- 2. ACTIVE DISPLAYS PAGE -----------------
+elif menu == "Active Displays":
+    st.title("📋 Current Active Showroom Displays")
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
@@ -181,7 +180,7 @@ elif menu == "Display & Item Entry":
     except Exception as e:
         st.error(f"Error fetching active displays: {e}")
 
-# ----------------- OUT OF STOCK / REMOVE SECTION -----------------
+# ----------------- 3. OUT OF STOCK / REMOVE SECTION -----------------
 elif menu == "Out of Stock / Remove Section":
     st.title("🗑️ Not Available & Permanent Stand Removal Section")
     
