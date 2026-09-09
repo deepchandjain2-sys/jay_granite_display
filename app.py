@@ -120,6 +120,7 @@ import json
 # Function to fetch live item names from Google Sheet
 def fetch_item_master_from_sheet():
     try:
+        # Aapki sheet ka proper CSV export link
         sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
         df_sheet = pd.read_csv(sheet_url)
         items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
@@ -130,7 +131,6 @@ def fetch_item_master_from_sheet():
             "10015 16X16 CIBELA",
             "1002 CIGAR GLOSSY 1X1 ICON"
         ]
-
 item_master_designs = fetch_item_master_from_sheet() ]
         
         selected_designs = st.multiselect(
