@@ -263,7 +263,7 @@ elif menu == "Davangere Active Displays":
         else:
             st.info("Davangere showroom mein abhi koi data update nahi hai. Jab aap Item Entry se Davangere select karke save karenge, tab yahan dikhega.")
     except Exception as e:
-        st.error(f"Error fetching Davangere displays: {e}")elif menu == "Davangere Active Displays":
+        st.error(f"Error fetching Davangere displays: {e}")
     st.title("🏛️ Davangere Branch - Active Displays")
     active_search = st.text_input("Search Davangere Displays (by Design, Stand)").lower()
     
