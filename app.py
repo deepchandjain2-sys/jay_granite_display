@@ -7,8 +7,7 @@ st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
 
 # Supabase Connection Setup
 SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."  # Yahan apni asli Supabase anon/public key dalein
-
+SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Fetch Showroom Displays from Supabase
