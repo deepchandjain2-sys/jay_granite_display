@@ -15,14 +15,19 @@ def fetch_showroom_displays():
     except Exception as e:
         st.error(f"Database error: {e}")
         return []
+        def fetch_users():
+    try:
+        response = supabase.table("users").select("*").execute()
+        return response.data
+    except Exception as e:
+        st.error(f"Users fetch error: {e}")
+        return []
 
 # Supabase Connection Setup
-SUPABASE_URL = st.secrets.get("SUPABASE_URL")
-SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 
 SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
-    
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)    
 default_users = {
     "admin": {"password": "123", "mobile": "9999999999", "role": "admin"},
     "DEEPCHAND JAIN": {"password": "deep1965", "mobile": "9888888888", "role": "admin"}
