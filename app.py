@@ -62,7 +62,7 @@ st.sidebar.markdown(f"**Role:** `{st.session_state.role.upper()}`")
 st.sidebar.markdown("---")
 
 if st.session_state.role == "admin":
-    menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "Dashboard & Reports", "Out of Stock / Remove Section", "Create Salesman Account"])
+    menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "All Showrooms View", "Dashboard & Reports", "Out of Stock / Remove Section", "Create Salesman Account"])
 else:
     menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "Dashboard & Reports", "Out of Stock / Remove Section"])
 
@@ -98,13 +98,13 @@ if st.session_state.role == "admin" and menu == "Create Salesman Account":
             else:
                 st.warning("Please fill in both username and password fields.")
 
-# ----------------- 1. ITEM ENTRY SECTION (Queue & Search) -----------------
+# ----------------- 1. ITEM ENTRY SECTION -----------------
 elif menu == "Item Entry":
     st.title("🏢 Showroom Display & Item Master Management")
     
     def fetch_item_master_from_sheet():
         try:
-            sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+            sheet_url = "https://docs.google.com/spreadsheets/d/1qhlBmCIUDAKfMX/export?format=csv&gid=0"
             df_sheet = pd.read_csv(sheet_url)
             items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
             return items
@@ -212,27 +212,38 @@ elif menu == "Active Displays":
     except Exception as e:
         st.error(f"Error fetching active displays: {e}")
 
-# ----------------- 3. PROFESSIONAL DASHBOARD & REPORTS -----------------
+# ----------------- 3. ALL SHOWROOMS VIEW (ADMIN SPECIAL) -----------------
+elif menu == "All Showrooms View" and st.session_state.role == "admin":
+    st.title("🌐 Combined View: All Showrooms")
+    
+    try:
+        response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
+        data = response.data
+        if data:
+            df = pd.DataFrame(data)
+            st.markdown("### Master Active Displays across All Branches")
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.info("No active displays found across showrooms.")
+    except Exception as e:
+        st.error(f"Error loading combined showroom data: {e}")
+
+# ----------------- 4. DASHBOARD & REPORTS -----------------
 elif menu == "Dashboard & Reports":
     st.title("📊 Executive Dashboard & Performance Reports")
     
     try:
-        # Fetch all records to calculate metrics
         res_all = supabase.table("showroom_displays").select("*").execute().data
         df_all = pd.DataFrame(res_all) if res_all else pd.DataFrame(columns=['id', 'location', 'stand', 'board', 'design', 'status', 'added_by'])
         
         if not df_all.empty:
-            # Branch Filter Tabs
             branch_tab1, branch_tab2 = st.tabs(["🏢 Hiriyur (Head Office)", "🏛️ Davangere (Branch)"])
+            total_stands_count = 50
             
-            total_stands_count = 50 # Total stands defined ST-01 to ST-50
-            
-            # --- BRANCH 1: HIRIYUR ---
             with branch_tab1:
                 st.subheader("Hiriyur Showroom Metrics")
                 df_hiriyur = df_all[df_all['location'].str.contains("HIRIYUR", case=False, na=False)]
                 active_hiriyur = df_hiriyur[df_hiriyur['status'] == "Available"]
-                
                 full_stands_h = active_hiriyur['stand'].nunique() if not active_hiriyur.empty else 0
                 empty_stands_h = total_stands_count - full_stands_h
                 
@@ -241,18 +252,15 @@ elif menu == "Dashboard & Reports":
                 col2.metric("Full Stands", full_stands_h)
                 col3.metric("Empty Stands", empty_stands_h)
                 
-                st.markdown("#### Active Displays in Hiriyur")
                 if not active_hiriyur.empty:
                     st.dataframe(active_hiriyur[['stand', 'board', 'design', 'added_by']], use_container_width=True)
                 else:
                     st.info("No active displays in Hiriyur.")
 
-            # --- BRANCH 2: DAVANGERE ---
             with branch_tab2:
                 st.subheader("Davangere Showroom Metrics")
                 df_davangere = df_all[df_all['location'].str.contains("Davangere", case=False, na=False)]
                 active_davangere = df_davangere[df_davangere['status'] == "Available"]
-                
                 full_stands_d = active_davangere['stand'].nunique() if not active_davangere.empty else 0
                 empty_stands_d = total_stands_count - full_stands_d
                 
@@ -261,33 +269,28 @@ elif menu == "Dashboard & Reports":
                 col2.metric("Full Stands", full_stands_d)
                 col3.metric("Empty Stands", empty_stands_d)
                 
-                st.markdown("#### Active Displays in Davangere")
                 if not active_davangere.empty:
                     st.dataframe(active_davangere[['stand', 'board', 'design', 'added_by']], use_container_width=True)
                 else:
                     st.info("No active displays in Davangere.")
 
             st.markdown("---")
-            st.subheader("👨‍💼 Salesman Progress & Finalization Report")
-            
+            st.subheader("👨‍💼 Salesman Progress Report")
             if 'added_by' in df_all.columns:
                 salesman_stats = df_all.groupby('added_by').agg(
                     Total_Selections=('design', 'count'),
                     Active_Displays=('status', lambda x: (x == 'Available').sum()),
                     Removed_Displays=('status', lambda x: (x == 'Not Available').sum())
                 ).reset_index()
-                
                 st.dataframe(salesman_stats, use_container_width=True)
             else:
-                st.info("Salesman tracking data is populating as new selections are made.")
-                
+                st.info("Salesman tracking data is populating.")
         else:
-            st.info("No data available in the database to generate reports.")
-            
+            st.info("No data available in the database.")
     except Exception as e:
         st.error(f"Error loading dashboard: {e}")
 
-# ----------------- 4. OUT OF STOCK / REMOVE SECTION -----------------
+# ----------------- 5. OUT OF STOCK / REMOVE SECTION -----------------
 elif menu == "Out of Stock / Remove Section":
     st.title("🗑️ Not Available & Permanent Stand Removal Section")
     
