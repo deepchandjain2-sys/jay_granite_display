@@ -115,8 +115,8 @@ elif menu == "Display & Item Entry":
             board = st.selectbox("3. Select Board Number", board_list)
             
         # Item Master / Design Selection (Multiple designs can be selected together)
-       import urllib.request
-       import json
+      import urllib.request
+      import json
 
 # Function to fetch live item names from Google Sheet
       def fetch_item_master_from_sheet():
