@@ -191,6 +191,7 @@ elif menu == "Item Entry":
 
 # ----------------- 2. HIRIYUR ACTIVE DISPLAYS -----------------
 # ----------------- 2. HIRIYUR ACTIVE DISPLAYS -----------------
+# ----------------- 2. HIRIYUR ACTIVE DISPLAYS -----------------
 elif menu == "Hiriyur Active Displays":
     st.title("🏢 Hiriyur Showroom - Active Displays")
     active_search = st.text_input("Search Hiriyur Displays (by Design, Stand)").lower()
@@ -199,8 +200,8 @@ elif menu == "Hiriyur Active Displays":
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
         if data:
-            # Hiriyur filter (jo Davangere nahi hain ya jisme Hiriyur likha hai)
-            data = [item for item in data if "davangere" not in str(item.get("location", "")).lower()]
+            # Sirf wahi item dikhenge jinki location mein strictly 'Hiriyur' ho
+            data = [item for item in data if "hiriyur" in str(item.get("location", "")).lower()]
             
             if active_search:
                 data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
@@ -228,6 +229,41 @@ elif menu == "Hiriyur Active Displays":
         st.error(f"Error fetching Hiriyur displays: {e}")
 
 # ----------------- 3. DAVANGERE ACTIVE DISPLAYS -----------------
+elif menu == "Davangere Active Displays":
+    st.title("🏛️ Davangere Branch - Active Displays")
+    active_search = st.text_input("Search Davangere Displays (by Design, Stand)").lower()
+    
+    try:
+        response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
+        data = response.data
+        if data:
+            # Sirf wahi item dikhenge jinki location mein strictly 'Davangere' ho
+            data = [item for item in data if "davangere" in str(item.get("location", "")).lower()]
+            
+            if active_search:
+                data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
+            
+            if data:
+                for item in data:
+                    cols = st.columns([3, 2, 2, 2])
+                    with cols[0]:
+                        st.write(f"**Design:** {item.get('design', '')}")
+                    with cols[1]:
+                        st.write(f"**Stand:** {item.get('stand', '')}")
+                    with cols[2]:
+                        st.write(f"**Board:** {item.get('board', '')}")
+                    with cols[3]:
+                        if st.button("❌ Not Available", key=f"btn_d_{item['id']}"):
+                            supabase.table("showroom_displays").update({"status": "Not Available"}).eq("id", item['id']).execute()
+                            st.success("Moved to Remove section!")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("Davangere showroom mein abhi koi data update nahi hai. Jab aap Item Entry se Davangere select karke save karenge, tab yahan dikhega.")
+        else:
+            st.info("No active displays found in database.")
+    except Exception as e:
+        st.error(f"Error fetching Davangere displays: {e}")# ----------------- 3. DAVANGERE ACTIVE DISPLAYS -----------------
 elif menu == "Davangere Active Displays":
     st.title("🏛️ Davangere Branch - Active Displays")
     active_search = st.text_input("Search Davangere Displays (by Design, Stand)").lower()
