@@ -190,6 +190,7 @@ elif menu == "Item Entry":
         st.info("Queue is empty. Add items above to save them together.")
 
 # ----------------- 2. HIRIYUR ACTIVE DISPLAYS -----------------
+# ----------------- 2. HIRIYUR ACTIVE DISPLAYS -----------------
 elif menu == "Hiriyur Active Displays":
     st.title("🏢 Hiriyur Showroom - Active Displays")
     active_search = st.text_input("Search Hiriyur Displays (by Design, Stand)").lower()
@@ -198,7 +199,9 @@ elif menu == "Hiriyur Active Displays":
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
         if data:
-            data = [item for item in data if "hiriyur" in str(item.get("location", "")).lower()]
+            # Hiriyur filter (jo Davangere nahi hain ya jisme Hiriyur likha hai)
+            data = [item for item in data if "davangere" not in str(item.get("location", "")).lower()]
+            
             if active_search:
                 data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
             
@@ -233,7 +236,9 @@ elif menu == "Davangere Active Displays":
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
         if data:
+            # Davangere filter (sirf jisme davangere likha ho)
             data = [item for item in data if "davangere" in str(item.get("location", "")).lower()]
+            
             if active_search:
                 data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
             
@@ -253,13 +258,11 @@ elif menu == "Davangere Active Displays":
                             st.rerun()
                     st.markdown("---")
             else:
-                st.info("No active displays found in Davangere.")
+                st.info("No active displays found in Davangere. (Naye items entry karte waqt Location 'Davangere (Branch)' select karein).")
         else:
             st.info("No active displays found in database.")
     except Exception as e:
-        st.error(f"Error fetching Davangere displays: {e}")
-
-# ----------------- 4. ALL SHOWROOMS VIEW (ADMIN) -----------------
+        st.error(f"Error fetching Davangere displays: {e}")# ----------------- 4. ALL SHOWROOMS VIEW (ADMIN) -----------------
 elif menu == "All Showrooms View" and st.session_state.role == "admin":
     st.title("🌐 Combined View: All Showrooms")
     try:
