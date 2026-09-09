@@ -1,9 +1,6 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
-import streamlit as st
-import pandas as pd
-from supabase import create_client, Client
 
 SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
 SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
