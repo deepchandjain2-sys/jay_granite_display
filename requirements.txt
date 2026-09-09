@@ -3,3 +3,4 @@ pandas
 requests
 openpyxl
 supabase
+supabase>=2.0.0
