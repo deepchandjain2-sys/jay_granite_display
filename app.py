@@ -9,7 +9,7 @@ st.set_page_config(page_title="Jay Granite Tiles - Management System", layout="w
 
 # Supabase Connection Setup
 SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlZHphemlyd3hheGFibnBwY2hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2ODAyOTgsImV4cCI6MjEwNDI1NjI5OH0.CSCbuwInWJtGpL7w_nMFU6ElGWnXxr67bKeMWuTpMMM"
+SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -100,10 +100,10 @@ if st.session_state.role == "admin" and menu == "Create Salesman Account":
 elif menu == "Display & Item Entry":
     st.title("🏢 Showroom Display & Item Master Management")
     
-    # Fetch live item master from Google Sheet
+    # Fetch live item master from Google Sheet CSV export link
     def fetch_item_master_from_sheet():
         try:
-            sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+            sheet_url = "https://docs.google.com/spreadsheets/d/1qhlBmCIUDAKfMX/export?format=csv&gid=0"
             df_sheet = pd.read_csv(sheet_url)
             items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
             return items
@@ -117,7 +117,7 @@ elif menu == "Display & Item Entry":
     item_master_designs = fetch_item_master_from_sheet()
 
     with st.form("item_entry_form"):
-        st.subheader("➕ Assign Multiple Designs to Stand & Board")
+        st.subheader("➕ Assign Multiple Designs to Stand & Board (Status: Available)")
         
         location = st.selectbox("1. Select Location", ["HIRIYUR (Head Office)", "Davangere (Branch)"])
         
@@ -134,6 +134,7 @@ elif menu == "Display & Item Entry":
             item_master_designs
         )
         
+        # Default status jab select hoke submit hoga toh "Available" rahega
         status = "Available"
         submit_item = st.form_submit_button("Save Entries to Display")
         
@@ -151,15 +152,16 @@ elif menu == "Display & Item Entry":
                         })
                     
                     supabase.table("showroom_displays").insert(insert_data).execute()
-                    st.success(f"Successfully added {len(selected_designs)} design(s) to Stand {stand}, Board {board}!")
+                    st.success(f"Successfully added {len(selected_designs)} design(s) as Available!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error saving entries: {e}")
             else:
                 st.warning("Please select at least one design from the Item Master.")
 
+    # Current Active Displays Table with "Not Available" Action
     st.markdown("---")
-    st.subheader("📋 Current Active Showroom Displays")
+    st.subheader("📋 Current Active Showroom Displays (Available)")
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
@@ -167,24 +169,24 @@ elif menu == "Display & Item Entry":
             df = pd.DataFrame(data)
             st.dataframe(df, use_container_width=True)
             
-            st.markdown("### 🔄 Manage Stock Status")
+            st.markdown("### 🔄 Mark Item as Not Available (Send to Remove Section)")
             item_ids = [item['id'] for item in data]
-            selected_id = st.selectbox("Select Item ID to mark Out of Stock", item_ids)
-            if st.button("Move Selected Item to Out of Stock"):
-                supabase.table("showroom_displays").update({"status": "Out of Stock"}).eq("id", selected_id).execute()
-                st.success("Item moved to Out of Stock section!")
+            selected_id = st.selectbox("Select Item ID to mark Not Available", item_ids)
+            if st.button("Move to Not Available / Remove Section"):
+                supabase.table("showroom_displays").update({"status": "Not Available"}).eq("id", selected_id).execute()
+                st.success("Item marked as Not Available and moved to Remove section!")
                 st.rerun()
         else:
-            st.info("No active displays found in the database.")
+            st.info("No active available displays found in the database.")
     except Exception as e:
         st.error(f"Error fetching active displays: {e}")
 
-# ----------------- OUT OF STOCK & PERMANENT REMOVAL SECTION -----------------
+# ----------------- OUT OF STOCK / REMOVE SECTION -----------------
 elif menu == "Out of Stock / Remove Section":
-    st.title("🗑️ Out of Stock & Permanent Stand Removal")
+    st.title("🗑️ Not Available & Permanent Stand Removal Section")
     
     try:
-        response = supabase.table("showroom_displays").select("*").eq("status", "Out of Stock").execute()
+        response = supabase.table("showroom_displays").select("*").eq("status", "Not Available").execute()
         data = response.data
         if data:
             df = pd.DataFrame(data)
@@ -199,6 +201,6 @@ elif menu == "Out of Stock / Remove Section":
                 st.success("Item permanently removed from stand and database!")
                 st.rerun()
         else:
-            st.info("No items currently in Out of Stock / Removal section.")
+            st.info("No items currently marked as Not Available.")
     except Exception as e:
         st.error(f"Error loading removal section: {e}")
