@@ -9,7 +9,7 @@ st.set_page_config(page_title="Jay Granite Tiles - Management System", layout="w
 
 # Supabase Connection Setup
 SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlZHphemlyd3hheGFibnBwY2hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2ODAyOTgsImV4cCI6MjEwNDI1NjI5OH0.CSCbuwInWJtGpL7w_nMFU6ElGWnXxr67bKeMWuTpMMM"
+SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -60,41 +60,11 @@ if not st.session_state.logged_in:
 st.sidebar.markdown(f"### 👤 User: {st.session_state.username.upper()}")
 st.sidebar.markdown(f"**Role:** `{st.session_state.role.upper()}`")
 st.sidebar.markdown("---")
-# Temporary Migration Button (App ke andar hi run karne ke liye)
-if st.sidebar.button("🔄 Migrate Old JSON to Supabase"):
-    import urllib.request
-    try:
-        # Apni GitHub wali raw json ka link yahan dalein
-        json_url = "https://raw.githubusercontent.com/deepchandjain2-sys/jay_granite_display/refs/heads/main/displays_data.json"
-        with urllib.request.urlopen(json_url) as response:
-            old_data = json.loads(response.read().decode())
-
-        formatted_data = []
-        for item in old_data:
-            raw_stand = str(item.get("stand", "1"))
-            raw_board = str(item.get("board", "1"))
-            
-            stand_str = f"ST-{int(raw_stand):02d}" if raw_stand.isdigit() else raw_stand
-            board_str = f"B-{int(raw_board)}" if raw_board.isdigit() else raw_board
-            
-            formatted_item = {
-                "location": item.get("location", "HIRIYUR (Head Office)"),
-                "stand": stand_str,
-                "board": board_str,
-                "design": item.get("design", ""),
-                "status": item.get("status", "Available")
-            }
-            formatted_data.append(formatted_item)
-
-        supabase.table("showroom_displays").insert(formatted_data).execute()
-        st.sidebar.success("Data successfully migrated to Supabase!")
-    except Exception as e:
-        st.sidebar.error(f"Migration error: {e}")
 
 if st.session_state.role == "admin":
-    menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "Out of Stock / Remove Section", "Create Salesman Account"])
+    menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "Dashboard & Reports", "Out of Stock / Remove Section", "Create Salesman Account"])
 else:
-    menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "Out of Stock / Remove Section"])
+    menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "Dashboard & Reports", "Out of Stock / Remove Section"])
 
 st.sidebar.markdown("---")
 if st.sidebar.button("🚪 Logout", use_container_width=True):
@@ -132,10 +102,9 @@ if st.session_state.role == "admin" and menu == "Create Salesman Account":
 elif menu == "Item Entry":
     st.title("🏢 Showroom Display & Item Master Management")
     
-    # Fetch live item master from Google Sheet
     def fetch_item_master_from_sheet():
         try:
-            sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+            sheet_url = "https://docs.google.com/spreadsheets/d/1qhlBmCIUDAKfMX/export?format=csv&gid=0"
             df_sheet = pd.read_csv(sheet_url)
             items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
             return items
@@ -151,8 +120,6 @@ elif menu == "Item Entry":
     item_master_designs = fetch_item_master_from_sheet()
 
     st.subheader("🔍 Search & Add Items to Queue")
-    
-    # Search Bar for Item Master (by Size, Company, Design Name)
     search_query = st.text_input("Search Item (Filter by Size, Company, or Design Name)").lower()
     filtered_items = [item for item in item_master_designs if search_query in item.lower()] if search_query else item_master_designs
 
@@ -178,14 +145,14 @@ elif menu == "Item Entry":
                     "stand": stand,
                     "board": board,
                     "design": selected_design,
-                    "status": "Available"
+                    "status": "Available",
+                    "added_by": st.session_state.username
                 }
                 st.session_state.item_queue.append(queue_item)
                 st.success(f"Added '{selected_design}' to queue!")
             else:
                 st.warning("Please select a design.")
 
-    # Show Current Queue
     if st.session_state.item_queue:
         st.markdown("### 🛒 Items in Queue (Ready to Save)")
         df_queue = pd.DataFrame(st.session_state.item_queue)
@@ -209,17 +176,14 @@ elif menu == "Item Entry":
         st.info("Queue is empty. Add items above to save them together.")
 
 # ----------------- 2. ACTIVE DISPLAYS PAGE -----------------
-# ----------------- 2. ACTIVE DISPLAYS PAGE -----------------
 elif menu == "Active Displays":
     st.title("📋 Current Active Showroom Displays")
-    
     active_search = st.text_input("Search Active Displays (by Design, Stand, or Location)").lower()
     
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
         if data:
-            # Filter based on search query
             if active_search:
                 data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
             
@@ -238,7 +202,7 @@ elif menu == "Active Displays":
                     with cols[4]:
                         if st.button("❌ Not Available", key=f"btn_{item['id']}"):
                             supabase.table("showroom_displays").update({"status": "Not Available"}).eq("id", item['id']).execute()
-                            st.success(f"Moved to Remove section!")
+                            st.success("Moved to Remove section!")
                             st.rerun()
                     st.markdown("---")
             else:
@@ -247,7 +211,83 @@ elif menu == "Active Displays":
             st.info("No active available displays found in the database.")
     except Exception as e:
         st.error(f"Error fetching active displays: {e}")
+
+# ----------------- 3. PROFESSIONAL DASHBOARD & REPORTS -----------------
+elif menu == "Dashboard & Reports":
+    st.title("📊 Executive Dashboard & Performance Reports")
+    
+    try:
+        # Fetch all records to calculate metrics
+        res_all = supabase.table("showroom_displays").select("*").execute().data
+        df_all = pd.DataFrame(res_all) if res_all else pd.DataFrame(columns=['id', 'location', 'stand', 'board', 'design', 'status', 'added_by'])
         
+        if not df_all.empty:
+            # Branch Filter Tabs
+            branch_tab1, branch_tab2 = st.tabs(["🏢 Hiriyur (Head Office)", "🏛️ Davangere (Branch)"])
+            
+            total_stands_count = 50 # Total stands defined ST-01 to ST-50
+            
+            # --- BRANCH 1: HIRIYUR ---
+            with branch_tab1:
+                st.subheader("Hiriyur Showroom Metrics")
+                df_hiriyur = df_all[df_all['location'].str.contains("HIRIYUR", case=False, na=False)]
+                active_hiriyur = df_hiriyur[df_hiriyur['status'] == "Available"]
+                
+                full_stands_h = active_hiriyur['stand'].nunique() if not active_hiriyur.empty else 0
+                empty_stands_h = total_stands_count - full_stands_h
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Total Active Items", len(active_hiriyur))
+                col2.metric("Full Stands", full_stands_h)
+                col3.metric("Empty Stands", empty_stands_h)
+                
+                st.markdown("#### Active Displays in Hiriyur")
+                if not active_hiriyur.empty:
+                    st.dataframe(active_hiriyur[['stand', 'board', 'design', 'added_by']], use_container_width=True)
+                else:
+                    st.info("No active displays in Hiriyur.")
+
+            # --- BRANCH 2: DAVANGERE ---
+            with branch_tab2:
+                st.subheader("Davangere Showroom Metrics")
+                df_davangere = df_all[df_all['location'].str.contains("Davangere", case=False, na=False)]
+                active_davangere = df_davangere[df_davangere['status'] == "Available"]
+                
+                full_stands_d = active_davangere['stand'].nunique() if not active_davangere.empty else 0
+                empty_stands_d = total_stands_count - full_stands_d
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Total Active Items", len(active_davangere))
+                col2.metric("Full Stands", full_stands_d)
+                col3.metric("Empty Stands", empty_stands_d)
+                
+                st.markdown("#### Active Displays in Davangere")
+                if not active_davangere.empty:
+                    st.dataframe(active_davangere[['stand', 'board', 'design', 'added_by']], use_container_width=True)
+                else:
+                    st.info("No active displays in Davangere.")
+
+            st.markdown("---")
+            st.subheader("👨‍💼 Salesman Progress & Finalization Report")
+            
+            if 'added_by' in df_all.columns:
+                salesman_stats = df_all.groupby('added_by').agg(
+                    Total_Selections=('design', 'count'),
+                    Active_Displays=('status', lambda x: (x == 'Available').sum()),
+                    Removed_Displays=('status', lambda x: (x == 'Not Available').sum())
+                ).reset_index()
+                
+                st.dataframe(salesman_stats, use_container_width=True)
+            else:
+                st.info("Salesman tracking data is populating as new selections are made.")
+                
+        else:
+            st.info("No data available in the database to generate reports.")
+            
+    except Exception as e:
+        st.error(f"Error loading dashboard: {e}")
+
+# ----------------- 4. OUT OF STOCK / REMOVE SECTION -----------------
 elif menu == "Out of Stock / Remove Section":
     st.title("🗑️ Not Available & Permanent Stand Removal Section")
     
