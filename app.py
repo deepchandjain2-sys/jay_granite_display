@@ -114,17 +114,24 @@ elif menu == "Display & Item Entry":
             board = st.selectbox("3. Select Board Number", board_list)
             
         # Item Master / Design Selection (Multiple designs can be selected together)
-        item_master_designs = [
-            "1018 CIGAR GLOSSY 2X2 ICON",
-            "1005 CIGAR GLOSSY 2X2 ICON",
-            "1007 LINER GLOSSY 2X1 ICON",
-            "GRANITE BLACK GLOSSY",
-            "ROYAL IMPERIAL BROWN",
-            "JET BLACK PREMIUM",
-            "TAN BROWN CLASSIC",
-            "PALAI RED GRANITE",
-            "COLOMBO JUBILEE"
+       import urllib.request
+import json
+
+# Function to fetch live item names from Google Sheet
+def fetch_item_master_from_sheet():
+    try:
+        sheet_url = "https://docs.google.com/spreadsheets/d/1qhlBmCIUDAKfMX/export?format=csv&gid=0"
+        df_sheet = pd.read_csv(sheet_url)
+        items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
+        return items
+    except Exception as e:
+        return [
+            "1000 L 12X18 KK",
+            "10015 16X16 CIBELA",
+            "1002 CIGAR GLOSSY 1X1 ICON"
         ]
+
+item_master_designs = fetch_item_master_from_sheet() ]
         
         selected_designs = st.multiselect(
             "4. Select Design(s) from Item Master (Multiple allowed for this Board)", 
