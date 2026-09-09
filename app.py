@@ -9,7 +9,7 @@ st.set_page_config(page_title="Jay Granite Tiles - Management System", layout="w
 
 # Supabase Connection Setup
 SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlZHphemlyd3hheGFibnBwY2hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2ODAyOTgsImV4cCI6MjEwNDI1NjI5OH0.CSCbuwInWJtGpL7w_nMFU6ElGWnXxr67bKeMWuTpMMM"
+SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -20,6 +20,8 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 if "role" not in st.session_state:
     st.session_state.role = ""
+if "item_queue" not in st.session_state:
+    st.session_state.item_queue = []
 
 # ----------------- LOGIN PAGE -----------------
 if not st.session_state.logged_in:
@@ -96,14 +98,14 @@ if st.session_state.role == "admin" and menu == "Create Salesman Account":
             else:
                 st.warning("Please fill in both username and password fields.")
 
-# ----------------- 1. ITEM ENTRY SECTION -----------------
+# ----------------- 1. ITEM ENTRY SECTION (Queue & Search) -----------------
 elif menu == "Item Entry":
     st.title("🏢 Showroom Display & Item Master Management")
     
-    # Fetch live item master from Google Sheet CSV export link
+    # Fetch live item master from Google Sheet
     def fetch_item_master_from_sheet():
         try:
-            sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+            sheet_url = "https://docs.google.com/spreadsheets/d/1qhlBmCIUDAKfMX/export?format=csv&gid=0"
             df_sheet = pd.read_csv(sheet_url)
             items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
             return items
@@ -111,14 +113,20 @@ elif menu == "Item Entry":
             return [
                 "1000 L 12X18 KK",
                 "10015 16X16 CIBELA",
-                "1002 CIGAR GLOSSY 1X1 ICON"
+                "1002 CIGAR GLOSSY 1X1 ICON",
+                "ANTALYA WHITE DG MATT 80X240",
+                "ROYAL IMPERIAL BROWN GRANITE"
             ]
 
     item_master_designs = fetch_item_master_from_sheet()
 
-    with st.form("item_entry_form"):
-        st.subheader("➕ Assign Multiple Designs to Stand & Board (Status: Available)")
-        
+    st.subheader("🔍 Search & Add Items to Queue")
+    
+    # Search Bar for Item Master (by Size, Company, Design Name)
+    search_query = st.text_input("Search Item (Filter by Size, Company, or Design Name)").lower()
+    filtered_items = [item for item in item_master_designs if search_query in item.lower()] if search_query else item_master_designs
+
+    with st.form("item_queue_form"):
         location = st.selectbox("1. Select Location", ["HIRIYUR (Head Office)", "Davangere (Branch)"])
         
         col1, col2 = st.columns(2)
@@ -129,43 +137,62 @@ elif menu == "Item Entry":
             board_list = [f"B-{i}" for i in range(1, 36)]
             board = st.selectbox("3. Select Board Number", board_list)
             
-        selected_designs = st.multiselect(
-            "4. Select Design(s) from Item Master (Multiple allowed for this Board)", 
-            item_master_designs
-        )
+        selected_design = st.selectbox("4. Select Design from Filtered List", filtered_items)
         
-        status = "Available"
-        submit_item = st.form_submit_button("Save Entries to Display")
+        add_to_queue_btn = st.form_submit_button("➕ Add Item to Queue")
         
-        if submit_item:
-            if selected_designs:
+        if add_to_queue_btn:
+            if selected_design:
+                queue_item = {
+                    "location": location,
+                    "stand": stand,
+                    "board": board,
+                    "design": selected_design,
+                    "status": "Available"
+                }
+                st.session_state.item_queue.append(queue_item)
+                st.success(f"Added '{selected_design}' to queue!")
+            else:
+                st.warning("Please select a design.")
+
+    # Show Current Queue
+    if st.session_state.item_queue:
+        st.markdown("### 🛒 Items in Queue (Ready to Save)")
+        df_queue = pd.DataFrame(st.session_state.item_queue)
+        st.dataframe(df_queue, use_container_width=True)
+        
+        col_save, col_clear = st.columns(2)
+        with col_save:
+            if st.button("💾 Save All Items to Active Display"):
                 try:
-                    insert_data = []
-                    for design in selected_designs:
-                        insert_data.append({
-                            "location": location,
-                            "stand": stand,
-                            "board": board,
-                            "design": design,
-                            "status": status
-                        })
-                    
-                    supabase.table("showroom_displays").insert(insert_data).execute()
-                    st.success(f"Successfully added {len(selected_designs)} design(s) as Available!")
+                    supabase.table("showroom_displays").insert(st.session_state.item_queue).execute()
+                    st.success("All items successfully saved to Active Display!")
+                    st.session_state.item_queue = []
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error saving entries: {e}")
-            else:
-                st.warning("Please select at least one design from the Item Master.")
+                    st.error(f"Error saving to database: {e}")
+        with col_clear:
+            if st.button("🗑️ Clear Queue"):
+                st.session_state.item_queue = []
+                st.rerun()
+    else:
+        st.info("Queue is empty. Add items above to save them together.")
 
 # ----------------- 2. ACTIVE DISPLAYS PAGE -----------------
 elif menu == "Active Displays":
     st.title("📋 Current Active Showroom Displays")
+    
+    # Search bar for Active Displays table
+    active_search = st.text_input("Search Active Displays (by Design, Stand, or Location)").lower()
+    
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
         if data:
             df = pd.DataFrame(data)
+            if active_search:
+                df = df[df.astype(str).apply(lambda x: x.str.lower().str.contains(active_search)).any(axis=1)]
+            
             st.dataframe(df, use_container_width=True)
             
             st.markdown("### 🔄 Mark Item as Not Available (Send to Remove Section)")
@@ -178,7 +205,7 @@ elif menu == "Active Displays":
         else:
             st.info("No active available displays found in the database.")
     except Exception as e:
-        st.error(f"Error fetching active displays: {e}")
+        st.error(f>Error fetching active displays: {e}")
 
 # ----------------- 3. OUT OF STOCK / REMOVE SECTION -----------------
 elif menu == "Out of Stock / Remove Section":
