@@ -62,9 +62,23 @@ st.sidebar.markdown(f"**Role:** `{st.session_state.role.upper()}`")
 st.sidebar.markdown("---")
 
 if st.session_state.role == "admin":
-    menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "All Showrooms View", "Dashboard & Reports", "Out of Stock / Remove Section", "Create Salesman Account"])
+    menu = st.sidebar.radio("Navigation Menu", [
+        "Item Entry", 
+        "Hiriyur Active Displays", 
+        "Davangere Active Displays", 
+        "All Showrooms View", 
+        "Dashboard & Reports", 
+        "Out of Stock / Remove Section", 
+        "Create Salesman Account"
+    ])
 else:
-    menu = st.sidebar.radio("Navigation Menu", ["Item Entry", "Active Displays", "Dashboard & Reports", "Out of Stock / Remove Section"])
+    menu = st.sidebar.radio("Navigation Menu", [
+        "Item Entry", 
+        "Hiriyur Active Displays", 
+        "Davangere Active Displays", 
+        "Dashboard & Reports", 
+        "Out of Stock / Remove Section"
+    ])
 
 st.sidebar.markdown("---")
 if st.sidebar.button("🚪 Logout", use_container_width=True):
@@ -104,7 +118,7 @@ elif menu == "Item Entry":
     
     def fetch_item_master_from_sheet():
         try:
-            sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4mWSP3s6r7UIwn-kcX8Ogev4yXWTMpMLvL87PGTR_UwxKjkcbU9NNxy__mbkyYplhDHxvsD2nKFvW/pub?gid=1816720040&single=true&output=csv"
+            sheet_url = "https://docs.google.com/spreadsheets/d/1qhlBmCIUDAKfMX/export?format=csv&gid=0"
             df_sheet = pd.read_csv(sheet_url)
             items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
             return items
@@ -175,22 +189,22 @@ elif menu == "Item Entry":
     else:
         st.info("Queue is empty. Add items above to save them together.")
 
-# ----------------- 2. ACTIVE DISPLAYS PAGE -----------------
-elif menu == "Active Displays":
-    st.title("📋 Current Active Showroom Displays")
-    active_search = st.text_input("Search Active Displays (by Design, Stand, or Location)").lower()
+# ----------------- 2. HIRIYUR ACTIVE DISPLAYS -----------------
+elif menu == "Hiriyur Active Displays":
+    st.title("🏢 Hiriyur Showroom - Active Displays")
+    active_search = st.text_input("Search Hiriyur Displays (by Design, Stand)").lower()
     
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
         if data:
+            data = [item for item in data if "hiriyur" in str(item.get("location", "")).lower()]
             if active_search:
                 data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
             
             if data:
-                st.markdown("### Active Items List")
                 for item in data:
-                    cols = st.columns([3, 2, 2, 2, 2])
+                    cols = st.columns([3, 2, 2, 2])
                     with cols[0]:
                         st.write(f"**Design:** {item.get('design', '')}")
                     with cols[1]:
@@ -198,40 +212,70 @@ elif menu == "Active Displays":
                     with cols[2]:
                         st.write(f"**Board:** {item.get('board', '')}")
                     with cols[3]:
-                        st.write(f"**Location:** {item.get('location', '')}")
-                    with cols[4]:
-                        if st.button("❌ Not Available", key=f"btn_{item['id']}"):
+                        if st.button("❌ Not Available", key=f"btn_h_{item['id']}"):
                             supabase.table("showroom_displays").update({"status": "Not Available"}).eq("id", item['id']).execute()
                             st.success("Moved to Remove section!")
                             st.rerun()
                     st.markdown("---")
             else:
-                st.info("No matching displays found.")
+                st.info("No active displays found in Hiriyur.")
         else:
-            st.info("No active available displays found in the database.")
+            st.info("No active displays found in database.")
     except Exception as e:
-        st.error(f"Error fetching active displays: {e}")
+        st.error(f"Error fetching Hiriyur displays: {e}")
 
-# ----------------- 3. ALL SHOWROOMS VIEW (ADMIN SPECIAL) -----------------
-elif menu == "All Showrooms View" and st.session_state.role == "admin":
-    st.title("🌐 Combined View: All Showrooms")
+# ----------------- 3. DAVANGERE ACTIVE DISPLAYS -----------------
+elif menu == "Davangere Active Displays":
+    st.title("🏛️ Davangere Branch - Active Displays")
+    active_search = st.text_input("Search Davangere Displays (by Design, Stand)").lower()
     
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
         if data:
+            data = [item for item in data if "davangere" in str(item.get("location", "")).lower()]
+            if active_search:
+                data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
+            
+            if data:
+                for item in data:
+                    cols = st.columns([3, 2, 2, 2])
+                    with cols[0]:
+                        st.write(f"**Design:** {item.get('design', '')}")
+                    with cols[1]:
+                        st.write(f"**Stand:** {item.get('stand', '')}")
+                    with cols[2]:
+                        st.write(f"**Board:** {item.get('board', '')}")
+                    with cols[3]:
+                        if st.button("❌ Not Available", key=f"btn_d_{item['id']}"):
+                            supabase.table("showroom_displays").update({"status": "Not Available"}).eq("id", item['id']).execute()
+                            st.success("Moved to Remove section!")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("No active displays found in Davangere.")
+        else:
+            st.info("No active displays found in database.")
+    except Exception as e:
+        st.error(f"Error fetching Davangere displays: {e}")
+
+# ----------------- 4. ALL SHOWROOMS VIEW (ADMIN) -----------------
+elif menu == "All Showrooms View" and st.session_state.role == "admin":
+    st.title("🌐 Combined View: All Showrooms")
+    try:
+        response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
+        data = response.data
+        if data:
             df = pd.DataFrame(data)
-            st.markdown("### Master Active Displays across All Branches")
             st.dataframe(df, use_container_width=True)
         else:
-            st.info("No active displays found across showrooms.")
+            st.info("No active displays found.")
     except Exception as e:
-        st.error(f"Error loading combined showroom data: {e}")
+        st.error(f"Error loading combined data: {e}")
 
-# ----------------- 4. DASHBOARD & REPORTS -----------------
+# ----------------- 5. DASHBOARD & REPORTS -----------------
 elif menu == "Dashboard & Reports":
     st.title("📊 Executive Dashboard & Performance Reports")
-    
     try:
         res_all = supabase.table("showroom_displays").select("*").execute().data
         df_all = pd.DataFrame(res_all) if res_all else pd.DataFrame(columns=['id', 'location', 'stand', 'board', 'design', 'status', 'added_by'])
@@ -290,10 +334,9 @@ elif menu == "Dashboard & Reports":
     except Exception as e:
         st.error(f"Error loading dashboard: {e}")
 
-# ----------------- 5. OUT OF STOCK / REMOVE SECTION -----------------
+# ----------------- 6. OUT OF STOCK / REMOVE SECTION -----------------
 elif menu == "Out of Stock / Remove Section":
     st.title("🗑️ Not Available & Permanent Stand Removal Section")
-    
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Not Available").execute()
         data = response.data
