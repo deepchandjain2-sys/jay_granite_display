@@ -2,12 +2,15 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 
-# Page Configuration
-st.set_page_config(page_title="Jay Granite Tiles Display Management", layout="wide")
+# Page Configuration for Professional Look
+st.set_page_config(page_title="Jay Granite Tiles - Management System", layout="wide")
 
 # Supabase Connection Setup
 SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlZHphemlyd3hheGFibnBwY2hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2ODAyOTgsImV4cCI6MjEwNDI1NjI5OH0.CSCbuwInWJtGpL7w_nMFU6ElGWnXxr67bKeMWuTpMMM"
+SUPABASE_KEY = "eyJ3I6cCJ9.eyJpZCI6... [apni sahi key yahan dalein]"  # Apni legacy ya publishable key yahan rakhein
+
+# Fallback clean key check if needed, using your working key format
+SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -21,58 +24,66 @@ if "role" not in st.session_state:
 
 # ----------------- LOGIN PAGE -----------------
 if not st.session_state.logged_in:
-    st.title("🔐 Jay Granite Tiles - Login")
+    st.markdown("<h2 style='text-align: center;'>🏢 Jay Granite Tiles - Secure Login</h2>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
     
-    with st.form("login_form"):
-        username_input = st.text_input("Username")
-        password_input = st.text_input("Password", type="password")
-        submit_login = st.form_submit_button("Login")
-        
-        if submit_login:
-            if username_input == "admin" and password_input == "admin123":
-                st.session_state.logged_in = True
-                st.session_state.username = "admin"
-                st.session_state.role = "admin"
-                st.success("Admin Login Successful!")
-                st.rerun()
-            else:
-                try:
-                    res = supabase.table("users").select("*").eq("username", username_input).eq("password", password_input).execute()
-                    if res.data:
-                        st.session_state.logged_in = True
-                        st.session_state.username = username_input
-                        st.session_state.role = "salesman"
-                        st.success("Salesman Login Successful!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid Username or Password")
-                except Exception as e:
-                    st.error(f"Login error: {e}")
-                    
-    st.stop()
+    with col2:
+        with st.form("login_form"):
+            username_input = st.text_input("Username")
+            password_input = st.text_input("Password", type="password")
+            submit_login = st.form_submit_button("Sign In", use_container_width=True)
+            
+            if submit_login:
+                if username_input == "admin" and password_input == "admin123":
+                    st.session_state.logged_in = True
+                    st.session_state.username = "admin"
+                    st.session_state.role = "admin"
+                    st.success("Admin Login Successful!")
+                    st.rerun()
+                else:
+                    try:
+                        res = supabase.table("users").select("*").eq("username", username_input).eq("password", password_input).execute()
+                        if res.data:
+                            st.session_state.logged_in = True
+                            st.session_state.username = username_input
+                            st.session_state.role = "salesman"
+                            st.success("Salesman Login Successful!")
+                            st.rerun()
+                        else:
+                            st.error("Invalid Username or Password")
+                    except Exception as e:
+                        st.error(f"Login error: {e}")
+        st.stop()
 
-# ----------------- LOGOUT & SIDEBAR -----------------
-st.sidebar.write(f"Logged in as: **{st.session_state.username}** ({st.session_state.role.upper()})")
-if st.sidebar.button("Logout"):
+# ----------------- SIDEBAR NAVIGATION -----------------
+st.sidebar.markdown(f"### 👤 User: {st.session_state.username.upper()}")
+st.sidebar.markdown(f"**Role:** `{st.session_state.role.upper()}`")
+st.sidebar.markdown("---")
+
+if st.session_state.role == "admin":
+    menu = st.sidebar.radio("Navigation Menu", ["Display & Item Entry", "Out of Stock / Remove Section", "Create Salesman Account"])
+else:
+    menu = st.sidebar.radio("Navigation Menu", ["Display & Item Entry", "Out of Stock / Remove Section"])
+
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Logout", use_container_width=True):
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.role = ""
     st.rerun()
 
-# Navigation based on role
-if st.session_state.role == "admin":
-    menu = st.sidebar.radio("Navigation", ["Display & Item Entry", "Out of Stock / Remove Section", "Create Salesman Account"])
-else:
-    menu = st.sidebar.radio("Navigation", ["Display & Item Entry", "Out of Stock / Remove Section"])
-
-# ----------------- ADMIN: CREATE SALESMAN -----------------
+# ----------------- ADMIN: CREATE SALESMAN ACCOUNT -----------------
 if st.session_state.role == "admin" and menu == "Create Salesman Account":
-    st.title("👤 Create Salesman User ID & Password")
+    st.title("👤 Salesman Account Management")
     
     with st.form("create_user_form"):
-        new_user = st.text_input("New Salesman Username")
-        new_pass = st.text_input("New Salesman Password", type="password")
-        create_btn = st.form_submit_button("Create User")
+        col1, col2 = st.columns(2)
+        with col1:
+            new_user = st.text_input("New Salesman Username")
+        with col2:
+            new_pass = st.text_input("New Salesman Password", type="password")
+            
+        create_btn = st.form_submit_button("Create Salesman Account")
         
         if create_btn:
             if new_user and new_pass:
@@ -80,52 +91,78 @@ if st.session_state.role == "admin" and menu == "Create Salesman Account":
                     supabase.table("users").insert([
                         {"username": new_user, "password": new_pass, "role": "salesman"}
                     ]).execute()
-                    st.success(f"Salesman '{new_user}' created successfully!")
+                    st.success(f"Salesman account '{new_user}' created successfully!")
                 except Exception as e:
                     st.error(f"Error creating user: {e}")
             else:
-                st.warning("Please enter both username and password.")
+                st.warning("Please fill in both username and password fields.")
 
-# ----------------- DISPLAY & ITEM ENTRY (Points 2, 3, 4) -----------------
+# ----------------- DISPLAY & ITEM ENTRY SECTION -----------------
 elif menu == "Display & Item Entry":
-    st.title("🏢 Showroom Display & Item Management")
+    st.title("🏢 Showroom Display & Item Master Management")
     
-    st.subheader("➕ New Item Entry to Stand & Board")
     with st.form("item_entry_form"):
+        st.subheader("➕ Assign Multiple Designs to Stand & Board")
+        
+        # 1st Line: Location Selection (Head Office HIRIYUR / Branch Davangere)
+        location = st.selectbox("1. Select Location", ["HIRIYUR (Head Office)", "Davangere (Branch)"])
+        
         col1, col2 = st.columns(2)
         with col1:
-            location = st.text_input("Location (e.g., Hiriyur)")
-            # Point 2: Stand select 1 to 50
-            stand = st.selectbox("Select Stand Number", [str(i) for i in range(1, 51)])
+            # 2nd Line: Stand Selection ST-01 to ST-50
+            stand_list = [f"ST-{i:02d}" for i in range(1, 51)]
+            stand = st.selectbox("2. Select Stand Number", stand_list)
         with col2:
-            # Point 3: Board select 1 to 35
-            board = st.selectbox("Select Board Number", [str(i) for i in range(1, 36)])
-            # Point 4: Design selection from Item Master / Text input
-            design = st.text_input("Design Name / Code (Item Master)")
-            status = st.selectbox("Status", ["Available", "Out of Stock"])
+            # 3rd Line: Board Selection B-1 to B-35
+            board_list = [f"B-{i}" for i in range(1, 36)]
+            board = st.selectbox("3. Select Board Number", board_list)
             
-        submit_item = st.form_submit_button("Save Item Entry")
+        # Item Master / Design Selection (Multiple designs can be selected together)
+        item_master_designs = [
+            "1018 CIGAR GLOSSY 2X2 ICON",
+            "1005 CIGAR GLOSSY 2X2 ICON",
+            "1007 LINER GLOSSY 2X1 ICON",
+            "GRANITE BLACK GLOSSY",
+            "ROYAL IMPERIAL BROWN",
+            "JET BLACK PREMIUM",
+            "TAN BROWN CLASSIC",
+            "PALAI RED GRANITE",
+            "COLOMBO JUBILEE"
+        ]
+        
+        selected_designs = st.multiselect(
+            "4. Select Design(s) from Item Master (Multiple allowed for this Board)", 
+            item_master_designs
+        )
+        
+        status = "Available"
+        submit_item = st.form_submit_button("Save Entries to Display")
         
         if submit_item:
-            if location and design:
+            if selected_designs:
                 try:
-                    supabase.table("showroom_displays").insert([{
-                        "location": location,
-                        "stand": stand,
-                        "board": board,
-                        "design": design,
-                        "status": status
-                    }]).execute()
-                    st.success("Item successfully assigned to stand!")
+                    # Insert each selected design mapping to the same location, stand, and board
+                    insert_data = []
+                    for design in selected_designs:
+                        insert_data.append({
+                            "location": location,
+                            "stand": stand,
+                            "board": board,
+                            "design": design,
+                            "status": status
+                        })
+                    
+                    supabase.table("showroom_displays").insert(insert_data).execute()
+                    st.success(f"Successfully added {len(selected_designs)} design(s) to Stand {stand}, Board {board}!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error adding item: {e}")
+                    st.error(f"Error saving entries: {e}")
             else:
-                st.warning("Please fill in all required fields.")
+                st.warning("Please select at least one design from the Item Master.")
 
-    # View Current Display List & Option to Send to Remove (Point 5)
+    # Current Active Displays Table
     st.markdown("---")
-    st.subheader("📋 Current Active Displays")
+    st.subheader("📋 Current Active Showroom Displays")
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
@@ -133,22 +170,21 @@ elif menu == "Display & Item Entry":
             df = pd.DataFrame(data)
             st.dataframe(df, use_container_width=True)
             
-            # Point 5: Out of stock hone par send to remove section
-            st.write("### Mark Item as Out of Stock / Send to Remove")
+            st.markdown("### 🔄 Manage Stock Status")
             item_ids = [item['id'] for item in data]
             selected_id = st.selectbox("Select Item ID to mark Out of Stock", item_ids)
-            if st.button("Move to Out of Stock"):
+            if st.button("Move Selected Item to Out of Stock"):
                 supabase.table("showroom_displays").update({"status": "Out of Stock"}).eq("id", selected_id).execute()
-                st.success("Item moved to Out of Stock / Remove section!")
+                st.success("Item moved to Out of Stock section!")
                 st.rerun()
         else:
-            st.info("No active displays found.")
+            st.info("No active displays found in the database.")
     except Exception as e:
-        st.error(f"Error fetching data: {e}")
+        st.error(f"Error fetching active displays: {e}")
 
-# ----------------- OUT OF STOCK & PERMANENT REMOVE SECTION (Points 5, 6) -----------------
+# ----------------- OUT OF STOCK & PERMANENT REMOVAL SECTION -----------------
 elif menu == "Out of Stock / Remove Section":
-    st.title("🗑️ Out of Stock & Permanent Item Removal")
+    st.title("🗑️ Out of Stock & Permanent Stand Removal")
     
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Out of Stock").execute()
@@ -157,15 +193,15 @@ elif menu == "Out of Stock / Remove Section":
             df = pd.DataFrame(data)
             st.dataframe(df, use_container_width=True)
             
-            st.write("### Permanently Remove Item from Stand (Point 6)")
+            st.markdown("### ❌ Permanent Removal from Stand & Database")
             remove_ids = [item['id'] for item in data]
-            selected_remove_id = st.selectbox("Select Item ID to Permanently Remove", remove_ids)
+            selected_remove_id = st.selectbox("Select Item ID for Permanent Deletion", remove_ids)
             
-            if st.button("Permanently Delete Item"):
+            if st.button("Permanently Delete from System"):
                 supabase.table("showroom_displays").delete().eq("id", selected_remove_id).execute()
                 st.success("Item permanently removed from stand and database!")
                 st.rerun()
         else:
-            st.info("No items currently in Out of Stock / Remove section.")
+            st.info("No items currently in Out of Stock / Removal section.")
     except Exception as e:
         st.error(f"Error loading removal section: {e}")
