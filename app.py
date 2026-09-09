@@ -21,21 +21,6 @@ SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)    
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-    try:
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            content_encoded = response.json().get("content", "")
-            decoded_bytes = base64.b64decode(content_encoded)
-            return json.loads(decoded_bytes.decode('utf-8'))
-    except:
-        pass
-    
-    if os.path.exists(filename):
-        try:
-            with open(filename, "r") as f:
-                return json.load(f)
         except:
             pass
     return default_val
