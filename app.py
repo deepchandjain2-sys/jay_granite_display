@@ -1,16 +1,18 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
-
+import urllib.request
+import json
 
 # Page Configuration for Professional Look
 st.set_page_config(page_title="Jay Granite Tiles - Management System", layout="wide")
 
 # Supabase Connection Setup
 SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlZHphemlyd3hheGFibnBwY2hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2ODAyOTgsImV4cCI6MjEwNDI1NjI5OH0.CSCbuwInWJtGpL7w_nMFU6ElGWnXxr67bKeMWuTpMMM"
+SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 # Session State Initialization
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -98,41 +100,35 @@ if st.session_state.role == "admin" and menu == "Create Salesman Account":
 elif menu == "Display & Item Entry":
     st.title("🏢 Showroom Display & Item Master Management")
     
+    # Fetch live item master from Google Sheet
+    def fetch_item_master_from_sheet():
+        try:
+            sheet_url = "https://docs.google.com/spreadsheets/d/1qhlBmCIUDAKfMX/export?format=csv&gid=0"
+            df_sheet = pd.read_csv(sheet_url)
+            items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
+            return items
+        except Exception as e:
+            return [
+                "1000 L 12X18 KK",
+                "10015 16X16 CIBELA",
+                "1002 CIGAR GLOSSY 1X1 ICON"
+            ]
+
+    item_master_designs = fetch_item_master_from_sheet()
+
     with st.form("item_entry_form"):
         st.subheader("➕ Assign Multiple Designs to Stand & Board")
         
-        # 1st Line: Location Selection (Head Office HIRIYUR / Branch Davangere)
         location = st.selectbox("1. Select Location", ["HIRIYUR (Head Office)", "Davangere (Branch)"])
         
         col1, col2 = st.columns(2)
         with col1:
-            # 2nd Line: Stand Selection ST-01 to ST-50
             stand_list = [f"ST-{i:02d}" for i in range(1, 51)]
             stand = st.selectbox("2. Select Stand Number", stand_list)
         with col2:
-            # 3rd Line: Board Selection B-1 to B-35
             board_list = [f"B-{i}" for i in range(1, 36)]
             board = st.selectbox("3. Select Board Number", board_list)
             
-        # Item Master / Design Selection (Multiple designs can be selected together)
-      import urllib.request
-      import json
-
-      def fetch_item_master_from_sheet():
-          try:
-              sheet_url = "https://docs.google.com/spreadsheets/d/1qhlBmCIUDAKfMX/export?format=csv&gid=0"
-              df_sheet = pd.read_csv(sheet_url)
-              items = df_sheet.iloc[:, 0].dropna().astype(str).tolist()
-              return items
-         except Exception as e:
-              return [
-                  "1000 L 12X18 KK",
-                  "10015 16X16 CIBELA",
-                  "1002 CIGAR GLOSSY 1X1 ICON"
-        ]
-
-item_master_designs = fetch_item_master_from_sheet()item_master_designs = fetch_item_master_from_sheet() ]
-        
         selected_designs = st.multiselect(
             "4. Select Design(s) from Item Master (Multiple allowed for this Board)", 
             item_master_designs
@@ -144,7 +140,6 @@ item_master_designs = fetch_item_master_from_sheet()item_master_designs = fetch_
         if submit_item:
             if selected_designs:
                 try:
-                    # Insert each selected design mapping to the same location, stand, and board
                     insert_data = []
                     for design in selected_designs:
                         insert_data.append({
@@ -163,7 +158,6 @@ item_master_designs = fetch_item_master_from_sheet()item_master_designs = fetch_
             else:
                 st.warning("Please select at least one design from the Item Master.")
 
-    # Current Active Displays Table
     st.markdown("---")
     st.subheader("📋 Current Active Showroom Displays")
     try:
