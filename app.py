@@ -65,7 +65,7 @@ if st.sidebar.button("🔄 Migrate Old JSON to Supabase"):
     import urllib.request
     try:
         # Apni GitHub wali raw json ka link yahan dalein
-        json_url = "https://raw.githubusercontent.com/deepchandjain2-sys/jay_granite_display/refs/heads/main/app.py"
+        json_url = "https://raw.githubusercontent.com/deepchandjain2-sys/jay_granite_display/refs/heads/main/displays_data.json"
         with urllib.request.urlopen(json_url) as response:
             old_data = json.loads(response.read().decode())
 
