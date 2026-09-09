@@ -192,15 +192,15 @@ elif menu == "Item Entry":
 # ----------------- 2. HIRIYUR ACTIVE DISPLAYS -----------------
 # ----------------- 2. HIRIYUR ACTIVE DISPLAYS -----------------
 # ----------------- 2. HIRIYUR ACTIVE DISPLAYS -----------------
+# ----------------- 2. HIRIYUR ACTIVE DISPLAYS -----------------
 elif menu == "Hiriyur Active Displays":
     st.title("🏢 Hiriyur Showroom - Active Displays")
-    active_search = st.text_input("Search Hiriyur Displays (by Design, Stand)").lower()
+    active_search = st.text_input("Search Hiriyur Displays (by Design, Stand)", key="hiriyur_search_input").lower()
     
     try:
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
         data = response.data
         if data:
-            # Sirf wahi item dikhenge jinki location mein strictly 'Hiriyur' ho
             data = [item for item in data if "hiriyur" in str(item.get("location", "")).lower()]
             
             if active_search:
@@ -229,13 +229,11 @@ elif menu == "Hiriyur Active Displays":
         st.error(f"Error fetching Hiriyur displays: {e}")
 
 # ----------------- 3. DAVANGERE ACTIVE DISPLAYS -----------------
-# ----------------- 3. DAVANGERE ACTIVE DISPLAYS -----------------
 elif menu == "Davangere Active Displays":
     st.title("🏛️ Davangere Branch - Active Displays")
-    active_search = st.text_input("Search Davangere Displays (by Design, Stand)").lower()
+    active_search = st.text_input("Search Davangere Displays (by Design, Stand)", key="davangere_search_input").lower()
     
     try:
-        # Seedha database se wahi data laye jo Davangere ka hai
         response = supabase.table("showroom_displays").select("*").eq("status", "Available").ilike("location", "%Davangere%").execute()
         data = response.data
         
@@ -263,8 +261,7 @@ elif menu == "Davangere Active Displays":
         else:
             st.info("Davangere showroom mein abhi koi data update nahi hai. Jab aap Item Entry se Davangere select karke save karenge, tab yahan dikhega.")
     except Exception as e:
-        st.error(f"Error fetching Davangere displays: {e}")
-    st.title("🏛️ Davangere Branch - Active Displays")
+        st.error(f"Error fetching Davangere displays: {e}")    st.title("🏛️ Davangere Branch - Active Displays")
     active_search = st.text_input("Search Davangere Displays (by Design, Stand)").lower()
     
     try:
