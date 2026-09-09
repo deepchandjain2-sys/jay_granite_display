@@ -7,22 +7,20 @@ import requests
 
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
 
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-REPO_NAME = st.secrets.get("REPO_NAME", "deepchandjain2-sys/jay_granite_display")
 
-USERS_FILE = "users_data.json"
-DISPLAYS_FILE = "displays_data.json"
+def fetch_showroom_displays():
+    try:
+        response = supabase.table("showroom_displays").select("*").execute()
+        return response.data
+    except Exception as e:
+        st.error(f"Database error: {e}")
+        return []
 
-def fetch_json_from_github(filename, default_val):
-    if not GITHUB_TOKEN:
-        if os.path.exists(filename):
-            try:
-                with open(filename, "r") as f:
-                    return json.load(f)
-            except:
-                return default_val
-        return default_val
-    
+# Supabase Connection Setup
+SUPABASE_URL = st.secrets.get("SUPABASE_URL")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)    
     url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
     try:
