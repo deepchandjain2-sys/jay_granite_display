@@ -23,7 +23,7 @@ SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)    
         except:
             pass
-    return default_val
+        return default_val
 
 def save_json_to_github(filename, data):
     with open(filename, "w") as f:
