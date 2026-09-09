@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
-import os
-import json
-import base64
-import requests
-SUPABASE_URL = st.secrets.get("SUPABASE_URL")
-SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+from supabase import create_client, Client
 
+# Direct Supabase Credentials
+SUPABASE_URL = "https://gedzazirwxaxabnppchc.supabase.co"
+SUPABASE_KEY = "sb_publishable_oi8gTy66MVBCtq-DasQHAA_M1Wvgg-g"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 st.set_page_config(page_title="Jay Granite Tiles Display", layout="wide")
 
 
