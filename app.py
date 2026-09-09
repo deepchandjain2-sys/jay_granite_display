@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 
+
 # Page Configuration for Professional Look
 st.set_page_config(page_title="Jay Granite Tiles - Management System", layout="wide")
 
