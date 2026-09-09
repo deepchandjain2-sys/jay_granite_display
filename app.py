@@ -216,7 +216,8 @@ elif menu == "Active Displays":
         else:
             st.info("No active available displays found in the database.")
     except Exception as e:
-        st.error(f"Error fetching active displays: {e}") OUT OF STOCK / REMOVE SECTION -----------------
+        st.error(f"Error fetching active displays: {e}")
+        
 elif menu == "Out of Stock / Remove Section":
     st.title("🗑️ Not Available & Permanent Stand Removal Section")
     
