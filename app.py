@@ -229,85 +229,69 @@ elif menu == "Hiriyur Active Displays":
         st.error(f"Error fetching Hiriyur displays: {e}")
 
 # ----------------- 3. DAVANGERE ACTIVE DISPLAYS -----------------
-elif menu == "Davangere Active Displays":
-    st.title("🏛️ Davangere Branch - Active Displays")
-    active_search = st.text_input("Search Davangere Displays (by Design, Stand)", key="davangere_search_input").lower()
-    
+# ----------------- 5. DASHBOARD & REPORTS -----------------
+elif menu == "Dashboard & Reports":
+    st.title("📊 Executive Dashboard & Performance Reports")
     try:
-        response = supabase.table("showroom_displays").select("*").eq("status", "Available").ilike("location", "%Davangere%").execute()
-        data = response.data
+        res_all = supabase.table("showroom_displays").select("*").execute().data
+        df_all = pd.DataFrame(res_all) if res_all else pd.DataFrame()
         
-        if data:
-            if active_search:
-                data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
+        if not df_all.empty:
+            # Agar added_by column nahi hai toh error se bachne ke liye safe column bana dein
+            if 'added_by' not in df_all.columns:
+                df_all['added_by'] = 'Unknown'
             
-            if data:
-                for item in data:
-                    cols = st.columns([3, 2, 2, 2])
-                    with cols[0]:
-                        st.write(f"**Design:** {item.get('design', '')}")
-                    with cols[1]:
-                        st.write(f"**Stand:** {item.get('stand', '')}")
-                    with cols[2]:
-                        st.write(f"**Board:** {item.get('board', '')}")
-                    with cols[3]:
-                        if st.button("❌ Not Available", key=f"btn_d_{item['id']}"):
-                            supabase.table("showroom_displays").update({"status": "Not Available"}).eq("id", item['id']).execute()
-                            st.success("Moved to Remove section!")
-                            st.rerun()
-                    st.markdown("---")
-            else:
-                st.info("No matching displays found in Davangere.")
-        else:
-            st.info("Davangere showroom mein abhi koi data update nahi hai. Jab aap Item Entry se Davangere select karke save karenge, tab yahan dikhega.")
-    except Exception as e:
-        st.error(f"Error fetching Davangere displays: {e}")    
-    active_search = st.text_input("Search Davangere Displays (by Design, Stand)").lower()
-    
-    try:
-        response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
-        data = response.data
-        if data:
-            # Davangere filter (sirf jisme davangere likha ho)
-            data = [item for item in data if "davangere" in str(item.get("location", "")).lower()]
+            branch_tab1, branch_tab2 = st.tabs(["🏢 Hiriyur (Head Office)", "🏛️ Davangere (Branch)"])
+            total_stands_count = 50
             
-            if active_search:
-                data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
-            
-            if data:
-                for item in data:
-                    cols = st.columns([3, 2, 2, 2])
-                    with cols[0]:
-                        st.write(f"**Design:** {item.get('design', '')}")
-                    with cols[1]:
-                        st.write(f"**Stand:** {item.get('stand', '')}")
-                    with cols[2]:
-                        st.write(f"**Board:** {item.get('board', '')}")
-                    with cols[3]:
-                        if st.button("❌ Not Available", key=f"btn_d_{item['id']}"):
-                            supabase.table("showroom_displays").update({"status": "Not Available"}).eq("id", item['id']).execute()
-                            st.success("Moved to Remove section!")
-                            st.rerun()
-                    st.markdown("---")
-            else:
-                st.info("No active displays found in Davangere. (Naye items entry karte waqt Location 'Davangere (Branch)' select karein).")
-        else:
-            st.info("No active displays found in database.")
-    except Exception as e:
-        st.error(f"Error fetching Davangere displays: {e}")# ----------------- 4. ALL SHOWROOMS VIEW (ADMIN) -----------------
-elif menu == "All Showrooms View" and st.session_state.role == "admin":
-    st.title("🌐 Combined View: All Showrooms")
-    try:
-        response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
-        data = response.data
-        if data:
-            df = pd.DataFrame(data)
-            st.dataframe(df, use_container_width=True)
-        else:
-            st.info("No active displays found.")
-    except Exception as e:
-        st.error(f"Error loading combined data: {e}")
+            with branch_tab1:
+                st.subheader("Hiriyur Showroom Metrics")
+                df_hiriyur = df_all[df_all['location'].str.contains("Hiriyur", case=False, na=False)]
+                active_hiriyur = df_hiriyur[df_hiriyur['status'] == "Available"]
+                full_stands_h = active_hiriyur['stand'].nunique() if not active_hiriyur.empty else 0
+                empty_stands_h = total_stands_count - full_stands_h
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Total Active Items", len(active_hiriyur))
+                col2.metric("Full Stands", full_stands_h)
+                col3.metric("Empty Stands", empty_stands_h)
+                
+                if not active_hiriyur.empty:
+                    display_cols = [c for c in ['stand', 'board', 'design', 'added_by'] if c in active_hiriyur.columns]
+                    st.dataframe(active_hiriyur[display_cols], use_container_width=True)
+                else:
+                    st.info("No active displays in Hiriyur.")
 
+            with branch_tab2:
+                st.subheader("Davangere Showroom Metrics")
+                df_davangere = df_all[df_all['location'].str.contains("Davangere", case=False, na=False)]
+                active_davangere = df_davangere[df_davangere['status'] == "Available"]
+                full_stands_d = active_davangere['stand'].nunique() if not active_davangere.empty else 0
+                empty_stands_d = total_stands_count - full_stands_d
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Total Active Items", len(active_davangere))
+                col2.metric("Full Stands", full_stands_d)
+                col3.metric("Empty Stands", empty_stands_d)
+                
+                if not active_davangere.empty:
+                    display_cols = [c for c in ['stand', 'board', 'design', 'added_by'] if c in active_davangere.columns]
+                    st.dataframe(active_davangere[display_cols], use_container_width=True)
+                else:
+                    st.info("No active displays in Davangere.")
+
+            st.markdown("---")
+            st.subheader("👨‍💼 Salesman Progress Report")
+            salesman_stats = df_all.groupby('added_by').agg(
+                Total_Selections=('design', 'count'),
+                Active_Displays=('status', lambda x: (x == 'Available').sum()),
+                Removed_Displays=('status', lambda x: (x == 'Not Available').sum())
+            ).reset_index()
+            st.dataframe(salesman_stats, use_container_width=True)
+        else:
+            st.info("No data available in the database.")
+    except Exception as e:
+        st.error(f"Error loading dashboard: {e}")
 # ----------------- 5. DASHBOARD & REPORTS -----------------
 elif menu == "Dashboard & Reports":
     st.title("📊 Executive Dashboard & Performance Reports")
