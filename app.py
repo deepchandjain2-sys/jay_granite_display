@@ -33,7 +33,7 @@ default_users = {
 }
 
 if "users" not in st.session_state:
-    st.session_state.users = fetch_json_from_github(USERS_FILE, default_users)
+    st.session_state.users = fetch_users()
 
 if "displays" not in st.session_state:
     st.session_state.displays = fetch_json_from_github(DISPLAYS_FILE, [])
