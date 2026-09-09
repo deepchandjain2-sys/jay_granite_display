@@ -20,9 +20,7 @@ def fetch_showroom_displays():
 SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 
-supabase: Client
-= create_client(SUPABASE_URL, SUPABASE_KEY)    
-     
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)     
 
     
 default_users = {
