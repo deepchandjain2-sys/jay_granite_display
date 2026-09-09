@@ -20,45 +20,11 @@ def fetch_showroom_displays():
 SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)    
-      except:
-        pass
-      return default_val
+supabase: Client
+= create_client(SUPABASE_URL, SUPABASE_KEY)    
      
-def save_json_to_github(filename, data):
-    with open(filename, "w") as f:
-        json.dump(data, f, indent=4)
-        
-    if not GITHUB_TOKEN:
-        return
-        
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filename}"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-    
-    sha = None
-    try:
-        res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200:
-            sha = res.json().get("sha")
-    except:
-        pass
-        
-    json_str = json.dumps(data, indent=4)
-    encoded_content = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
-    
-    payload = {
-        "message": f"Auto-update {filename} from Streamlit App",
-        "content": encoded_content,
-        "branch": "main"
-    }
-    if sha:
-        payload["sha"] = sha
-        
-    try:
-        requests.put(url, headers=headers, json=payload, timeout=5)
-    except:
-        pass
 
+    
 default_users = {
     "admin": {"password": "123", "mobile": "9999999999", "role": "admin"},
     "DEEPCHAND JAIN": {"password": "deep1965", "mobile": "9888888888", "role": "admin"}
