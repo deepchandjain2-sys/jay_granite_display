@@ -229,17 +229,17 @@ elif menu == "Hiriyur Active Displays":
         st.error(f"Error fetching Hiriyur displays: {e}")
 
 # ----------------- 3. DAVANGERE ACTIVE DISPLAYS -----------------
+# ----------------- 3. DAVANGERE ACTIVE DISPLAYS -----------------
 elif menu == "Davangere Active Displays":
     st.title("🏛️ Davangere Branch - Active Displays")
     active_search = st.text_input("Search Davangere Displays (by Design, Stand)").lower()
     
     try:
-        response = supabase.table("showroom_displays").select("*").eq("status", "Available").execute()
+        # Seedha database se wahi data laye jo Davangere ka hai
+        response = supabase.table("showroom_displays").select("*").eq("status", "Available").ilike("location", "%Davangere%").execute()
         data = response.data
+        
         if data:
-            # Sirf wahi item dikhenge jinki location mein strictly 'Davangere' ho
-            data = [item for item in data if "davangere" in str(item.get("location", "")).lower()]
-            
             if active_search:
                 data = [item for item in data if any(active_search in str(val).lower() for val in item.values())]
             
@@ -259,12 +259,11 @@ elif menu == "Davangere Active Displays":
                             st.rerun()
                     st.markdown("---")
             else:
-                st.info("Davangere showroom mein abhi koi data update nahi hai. Jab aap Item Entry se Davangere select karke save karenge, tab yahan dikhega.")
+                st.info("No matching displays found in Davangere.")
         else:
-            st.info("No active displays found in database.")
+            st.info("Davangere showroom mein abhi koi data update nahi hai. Jab aap Item Entry se Davangere select karke save karenge, tab yahan dikhega.")
     except Exception as e:
-        st.error(f"Error fetching Davangere displays: {e}")# ----------------- 3. DAVANGERE ACTIVE DISPLAYS -----------------
-elif menu == "Davangere Active Displays":
+        st.error(f"Error fetching Davangere displays: {e}")elif menu == "Davangere Active Displays":
     st.title("🏛️ Davangere Branch - Active Displays")
     active_search = st.text_input("Search Davangere Displays (by Design, Stand)").lower()
     
